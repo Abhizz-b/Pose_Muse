@@ -1,0 +1,38 @@
+﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'screens/home_screen.dart';
+
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ),
+  );
+  runApp(const PoseMuseApp());
+}
+
+class PoseMuseApp extends StatelessWidget {
+  const PoseMuseApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'PoseMuse',
+      debugShowCheckedModeBanner: false,
+      themeMode: ThemeMode.dark,
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        useMaterial3: true,
+        colorScheme: const ColorScheme.dark(
+          primary: Color(0xFF9C6FFF),
+          surface: Color(0xFF0D0D0D),
+        ),
+        scaffoldBackgroundColor: const Color(0xFF000000),
+      ),
+      home: const HomeScreen(),
+    );
+  }
+}

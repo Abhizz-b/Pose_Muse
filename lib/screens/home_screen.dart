@@ -1,0 +1,801 @@
+﻿import 'package:flutter/material.dart';
+import 'catalog_screen.dart';
+import 'package:flutter/services.dart';
+import 'package:camera/camera.dart';
+import '../services/detection_service.dart';
+import '../models/detection_result.dart';
+import '../widgets/scan_overlay.dart';
+import '../widgets/results_sheet.dart';
+import '../models/pose_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+  CameraController? _cameraController;
+  List<CameraDescription> _cameras = [];
+  bool _isInitialized = false;
+  bool _isScanning = false;
+  bool _isFrontCamera = false;
+  bool _flashOn = false;
+  String _zoomLabel = '1x';
+  int _timerSeconds = 0;
+  String _statusMessage = '';
+  bool _noPersonDetected = false;
+
+  late AnimationController _scanLineController;
+  late Animation<double> _scanLineAnim;
+  late AnimationController _statusFadeController;
+  late Animation<double> _statusFade;
+
+  static const _purple = Color(0xFF9C6FFF);
+  static const _orange = Color(0xFFE8A020);
+
+  @override
+  void initState() {
+    super.initState();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.black,
+      ),
+    );
+
+    _scanLineController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat();
+    _scanLineAnim = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(_scanLineController);
+
+    _statusFadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _statusFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _statusFadeController, curve: Curves.easeIn),
+    );
+    _initCamera();
+  }
+
+  Future<void> _initCamera({bool useFront = false}) async {
+    setState(() => _isInitialized = false);
+    _cameras = await availableCameras();
+    if (_cameras.isEmpty) return;
+    final selected = useFront
+        ? _cameras.firstWhere(
+            (c) => c.lensDirection == CameraLensDirection.front,
+            orElse: () => _cameras.first,
+          )
+        : _cameras.firstWhere(
+            (c) => c.lensDirection == CameraLensDirection.back,
+            orElse: () => _cameras.first,
+          );
+    await _cameraController?.dispose();
+    _cameraController = CameraController(
+      selected,
+      ResolutionPreset.high,
+      enableAudio: false,
+      imageFormatGroup: ImageFormatGroup.nv21,
+    );
+    await _cameraController!.initialize();
+    if (mounted) setState(() => _isInitialized = true);
+  }
+
+  Future<void> _flipCamera() async {
+    HapticFeedback.lightImpact();
+    _isFrontCamera = !_isFrontCamera;
+    await _initCamera(useFront: _isFrontCamera);
+  }
+
+  Future<void> _toggleFlash() async {
+    if (_cameraController == null) return;
+    HapticFeedback.lightImpact();
+    setState(() => _flashOn = !_flashOn);
+    await _cameraController!.setFlashMode(
+      _flashOn ? FlashMode.torch : FlashMode.off,
+    );
+  }
+
+  void _cycleTimer() {
+    HapticFeedback.lightImpact();
+    const options = [0, 3, 5, 10];
+    final idx = options.indexOf(_timerSeconds);
+    setState(() => _timerSeconds = options[(idx + 1) % options.length]);
+  }
+
+  Future<void> _cycleZoom() async {
+    if (_cameraController == null) return;
+    HapticFeedback.lightImpact();
+    const options = ['1x', '1.5x', '2x'];
+    final map = {'1x': 1.0, '1.5x': 1.5, '2x': 2.0};
+    final idx = options.indexOf(_zoomLabel);
+    final next = options[(idx + 1) % options.length];
+    await _cameraController!.setZoomLevel(map[next]!);
+    setState(() => _zoomLabel = next);
+  }
+
+  Future<void> _startScan() async {
+    if (_isScanning) return;
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _isScanning = true;
+      _noPersonDetected = false;
+      _statusMessage = '';
+    });
+
+    if (_timerSeconds > 0) {
+      for (int i = _timerSeconds; i > 0; i--) {
+        if (!mounted) return;
+        await _statusFadeController.reverse();
+        setState(() => _statusMessage = 'Starting in ${i}s...');
+        _statusFadeController.forward(from: 0);
+        await Future.delayed(const Duration(seconds: 1));
+      }
+    }
+
+    final messages = [
+      'Scanning Environment...',
+      'Detecting Subject...',
+      'Matching The Vibe...',
+      'Generating Pose Ideas...',
+    ];
+    for (final msg in messages) {
+      if (!mounted) return;
+      await _statusFadeController.reverse();
+      setState(() => _statusMessage = msg);
+      _statusFadeController.forward(from: 0);
+      await Future.delayed(const Duration(milliseconds: 950));
+    }
+
+    final result = await DetectionService.analyze(null, null);
+    if (!mounted) return;
+    setState(() {
+      _isScanning = false;
+      _statusMessage = '';
+    });
+    HapticFeedback.lightImpact();
+
+    if (!result.personDetected) {
+      setState(() => _noPersonDetected = true);
+      return;
+    }
+    _showResults(result);
+  }
+
+  void _showResults(DetectionResult result) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => ResultsSheet(result: result, onSavePose: _savePose),
+    );
+  }
+
+  Future<void> _savePose(PoseModel pose) async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getStringList('favourites') ?? [];
+    final encoded = jsonEncode(pose.toJson());
+    if (!saved.contains(encoded)) {
+      saved.add(encoded);
+      await prefs.setStringList('favourites', saved);
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.favorite, color: Colors.white, size: 16),
+              const SizedBox(width: 8),
+              Text(
+                '${pose.name} saved!',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF6B3FD4),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _cameraController?.dispose();
+    _scanLineController.dispose();
+    _statusFadeController.dispose();
+    DetectionService.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final topPad = MediaQuery.of(context).padding.top;
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      extendBodyBehindAppBar: true,
+      body: Stack(
+        children: [
+          // FULL SCREEN CAMERA
+          if (_isInitialized && _cameraController != null)
+            Positioned.fill(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: _cameraController!.value.previewSize!.height,
+                  height: _cameraController!.value.previewSize!.width,
+                  child: CameraPreview(_cameraController!),
+                ),
+              ),
+            )
+          else
+            Positioned.fill(
+              child: Container(
+                color: Colors.black,
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    color: _purple,
+                    strokeWidth: 2,
+                  ),
+                ),
+              ),
+            ),
+
+          // SCAN GRID OVERLAY
+          if (_isScanning)
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: _scanLineAnim,
+                builder: (_, __) => CustomPaint(
+                  painter: _GridScanPainter(
+                    progress: _scanLineAnim.value,
+                    color: _purple,
+                  ),
+                ),
+              ),
+            ),
+
+          // ORANGE CORNER BRACKETS
+          Positioned.fill(
+            child: CustomPaint(painter: _CornerPainter(color: _orange)),
+          ),
+
+          // TOP BAR
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.85),
+                    Colors.black.withOpacity(0.0),
+                  ],
+                ),
+              ),
+              padding: EdgeInsets.only(
+                top: topPad + 6,
+                left: 14,
+                right: 14,
+                bottom: 16,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _CircleTopBtn(icon: Icons.settings_outlined, onTap: () {}),
+                  Row(
+                    children: [
+                      _CircleTopBtn(
+                        icon: Icons.grain_rounded,
+                        onTap: () {},
+                        tooltip: 'Grid',
+                      ),
+                      const SizedBox(width: 8),
+                      _CircleTopBtn(
+                        icon: Icons.timer_outlined,
+                        label: _timerSeconds == 0 ? null : '${_timerSeconds}s',
+                        active: _timerSeconds > 0,
+                        activeColor: _orange,
+                        onTap: _cycleTimer,
+                      ),
+                      const SizedBox(width: 8),
+                      _CircleTopBtn(
+                        icon: _flashOn
+                            ? Icons.flash_on_rounded
+                            : Icons.flash_off_rounded,
+                        active: _flashOn,
+                        activeColor: _orange,
+                        onTap: _toggleFlash,
+                      ),
+                      const SizedBox(width: 8),
+                      _ZoomBtn(label: _zoomLabel, onTap: _cycleZoom),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // SCANNING STATUS
+          if (_isScanning && _statusMessage.isNotEmpty)
+            Positioned(
+              bottom: bottomPad + 100,
+              left: 0,
+              right: 0,
+              child: FadeTransition(
+                opacity: _statusFade,
+                child: Center(
+                  child: Text(
+                    _statusMessage.toUpperCase(),
+                    style: const TextStyle(
+                      color: _orange,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 2.0,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // NO PERSON DETECTED
+          if (_noPersonDetected && !_isScanning)
+            Positioned(
+              bottom: bottomPad + 110,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.75),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: Colors.red.withOpacity(0.4),
+                      width: 1,
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        color: Color(0xFFE24B4A),
+                        size: 15,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        'No person detected. Rescan.',
+                        style: TextStyle(
+                          color: Color(0xFFF09595),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // BOTTOM BAR
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.92),
+                    Colors.black.withOpacity(0.0),
+                  ],
+                ),
+              ),
+              padding: EdgeInsets.only(
+                top: 20,
+                left: 20,
+                right: 20,
+                bottom: bottomPad + 12,
+              ),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: _isScanning
+                    ? _buildScanningBottom()
+                    : _buildDetectBottom(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetectBottom() {
+    return Column(
+      key: const ValueKey('detect'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text(
+          'Scan Now or Browse Poses',
+          style: TextStyle(
+            color: Colors.white54,
+            fontSize: 12,
+            letterSpacing: 0.3,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _ActionPill(
+              icon: Icons.document_scanner_outlined,
+              label: 'Scan',
+              onTap: () {
+                setState(() => _noPersonDetected = false);
+                _startScan();
+              },
+            ),
+            const SizedBox(width: 10),
+            _ActionPill(
+              icon: Icons.person_search_outlined,
+              label: 'Catalog',
+             onTap: () async {
+                final selected = await Navigator.push<List<PoseModel>>(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CatalogScreen()),
+                );
+                if (selected != null && selected.isNotEmpty) {
+                  // selected poses use karo shoot ke liye
+                }
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _SideBtn(icon: Icons.photo_outlined, onTap: () {}),
+            _ShutterBtn(
+              isScanning: false,
+              onTap: () {
+                setState(() => _noPersonDetected = false);
+                _startScan();
+              },
+            ),
+            _SideBtn(
+              icon: Icons.flip_camera_android_outlined,
+              onTap: _flipCamera,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildScanningBottom() {
+    return Row(
+      key: const ValueKey('scanning'),
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _SideBtn(icon: Icons.photo_outlined, onTap: () {}),
+        _ShutterBtn(isScanning: true, onTap: null),
+        _SideBtn(icon: Icons.flip_camera_android_outlined, onTap: _flipCamera),
+      ],
+    );
+  }
+}
+
+// ── Reusable Widgets ──
+
+class _CircleTopBtn extends StatelessWidget {
+  final IconData icon;
+  final String? label;
+  final bool active;
+  final Color activeColor;
+  final String? tooltip;
+  final VoidCallback onTap;
+
+  const _CircleTopBtn({
+    required this.icon,
+    required this.onTap,
+    this.label,
+    this.active = false,
+    this.activeColor = const Color(0xFFE8A020),
+    this.tooltip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: active
+              ? activeColor.withOpacity(0.15)
+              : Colors.black.withOpacity(0.5),
+          border: Border.all(
+            color: active
+                ? activeColor.withOpacity(0.6)
+                : Colors.white.withOpacity(0.2),
+            width: 0.8,
+          ),
+        ),
+        child: Center(
+          child: label != null
+              ? Text(
+                  label!,
+                  style: TextStyle(
+                    color: active ? activeColor : Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                )
+              : Icon(
+                  icon,
+                  color: active ? activeColor : Colors.white,
+                  size: 17,
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ZoomBtn extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _ZoomBtn({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withOpacity(0.2), width: 0.8),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ActionPill({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.55),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.white.withOpacity(0.2), width: 0.8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white, size: 15),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SideBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _SideBtn({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 46,
+        height: 46,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.black.withOpacity(0.5),
+          border: Border.all(color: Colors.white.withOpacity(0.2), width: 0.8),
+        ),
+        child: Icon(icon, color: Colors.white, size: 20),
+      ),
+    );
+  }
+}
+
+class _ShutterBtn extends StatelessWidget {
+  final bool isScanning;
+  final VoidCallback? onTap;
+  static const _purple = Color(0xFF9C6FFF);
+  static const _orange = Color(0xFFE8A020);
+
+  const _ShutterBtn({required this.isScanning, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 70,
+        height: 70,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: isScanning ? _purple : _orange, width: 3),
+        ),
+        child: Center(
+          child: Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isScanning
+                  ? _purple.withOpacity(0.4)
+                  : Colors.black.withOpacity(0.6),
+            ),
+            child: isScanning
+                ? const Center(
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    ),
+                  )
+                : const Icon(
+                    Icons.camera_alt_rounded,
+                    color: Colors.white,
+                    size: 26,
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CornerPainter extends CustomPainter {
+  final Color color;
+  _CornerPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    const double m = 20;
+    const double len = 30;
+    final double b = size.height - 20;
+
+    canvas.drawLine(Offset(m, m + len), Offset(m, m), paint);
+    canvas.drawLine(Offset(m, m), Offset(m + len, m), paint);
+    canvas.drawLine(
+      Offset(size.width - m, m + len),
+      Offset(size.width - m, m),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size.width - m, m),
+      Offset(size.width - m - len, m),
+      paint,
+    );
+    canvas.drawLine(Offset(m, b - len), Offset(m, b), paint);
+    canvas.drawLine(Offset(m, b), Offset(m + len, b), paint);
+    canvas.drawLine(
+      Offset(size.width - m, b - len),
+      Offset(size.width - m, b),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size.width - m, b),
+      Offset(size.width - m - len, b),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_CornerPainter old) => false;
+}
+
+class _GridScanPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+  _GridScanPainter({required this.progress, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = color.withOpacity(0.07)
+      ..strokeWidth = 0.5;
+    for (double x = 0; x < size.width; x += 30) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
+    }
+    for (double y = 0; y < size.height; y += 30) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+    final scanY = size.height * 0.08 + (size.height * 0.82 * progress);
+    final scanPaint = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          Colors.transparent,
+          color,
+          Colors.white,
+          color,
+          Colors.transparent,
+        ],
+      ).createShader(Rect.fromLTWH(0, scanY, size.width, 2))
+      ..strokeWidth = 2;
+    canvas.drawLine(Offset(0, scanY), Offset(size.width, scanY), scanPaint);
+  }
+
+  @override
+  bool shouldRepaint(_GridScanPainter old) => old.progress != progress;
+}

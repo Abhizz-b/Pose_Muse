@@ -1,0 +1,119 @@
+[
+  {
+    "id": 1,
+    "image": "assets/poses/1.png",
+    "category": "park",
+    "tags": [
+      "standing",
+      "full-body",
+      "bag",
+      "dress",
+      "casual",
+      "outdoor"
+    ],
+    "difficulty": "easy",
+    "name": "Casual Stand"
+  },
+  {
+    "id": 2,
+    "image": "assets/poses/2.png",
+    "category": "mall",
+    "tags": [
+      "half-body",
+      "arms-crossed",
+      "confident",
+      "indoor",
+      "stylish"
+    ],
+    "difficulty": "easy",
+    "name": "Confident Cross"
+  },
+  {
+    "id": 3,
+    "image": "assets/poses/3.png",
+    "category": "park",
+    "tags": [
+      "peace-sign",
+      "fun",
+      "outdoor",
+      "sitting",
+      "expressive"
+    ],
+    "difficulty": "easy",
+    "name": "Peace & Smile"
+  },
+  {
+    "id": 4,
+    "image": "assets/poses/4.png",
+    "category": "mall",
+    "tags": [
+      "leaning",
+      "casual",
+      "jeans",
+      "bag",
+      "full-body",
+      "indoor"
+    ],
+    "difficulty": "medium",
+    "name": "Street Lean"
+  },
+  {
+    "id": 5,
+    "image": "assets/poses/5.png",
+    "category": "park",
+    "tags": [
+      "pointing-up",
+      "dynamic",
+      "full-body",
+      "jacket",
+      "energetic"
+    ],
+    "difficulty": "hard",
+    "name": "Sky Point"
+  },
+  {
+    "id": 6,
+    "image": "assets/poses/6.png",
+    "category": "library",
+    "tags": [
+      "sitting",
+      "chin-rest",
+      "relaxed",
+      "indoor",
+      "half-body",
+      "dreamy"
+    ],
+    "difficulty": "easy",
+    "name": "Dreamy Rest"
+  },
+  {
+    "id": 7,
+    "image": "assets/poses/7.png",
+    "category": "library",
+    "tags": [
+      "sitting",
+      "reading",
+      "book",
+      "indoor",
+      "casual",
+      "half-body"
+    ],
+    "difficulty": "easy",
+    "name": "Reading Pose"
+  },
+  {
+    "id": 8,
+    "image": "assets/poses/8.png",
+    "category": "park",
+    "tags": [
+      "standing",
+      "casual",
+      "t-shirt",
+      "relaxed",
+      "smiling",
+      "outdoor"
+    ],
+    "difficulty": "easy",
+    "name": "Relaxed Smile"
+  }
+]
