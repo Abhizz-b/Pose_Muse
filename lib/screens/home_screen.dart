@@ -146,7 +146,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final messages = [
       'Scanning Environment...',
       'Detecting Subject...',
-      'Matching The Vibe...',
       'Generating Pose Ideas...',
     ];
     for (final msg in messages) {
