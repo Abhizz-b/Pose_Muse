@@ -454,11 +454,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               onTap: () async {
                 final selected = await Navigator.push<List<PoseModel>>(
                   context,
-                  MaterialPageRoute(builder: (_) => const CatalogScreen()),
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        CatalogScreen(initiallySelected: _shootPoses),
+                  ),
                 );
                 if (selected != null && selected.isNotEmpty) {
                   setState(() {
-                    _shootPoses.addAll(selected);
+                    for (final pose in selected) {
+                      final exists = _shootPoses.any(
+                        (p) => p.name == pose.name,
+                      );
+                      if (!exists) {
+                        _shootPoses.add(pose);
+                      }
+                    }
                   });
                 }
               },
@@ -864,57 +874,57 @@ class _PoseWheelCarouselState extends State<_PoseWheelCarousel> {
               );
             },
             child: Transform.translate(
-            offset: Offset(0, verticalOffset),
-            child: Transform(
-              alignment: Alignment.center,
-              transform: Matrix4.identity()
-                ..setEntry(3, 2, 0.0015)
-                ..rotateY(angle * 0.4),
-              child: Transform.scale(
-                scale: scale,
-                child: Opacity(
-                  opacity: opacity,
-                  child: Center(
-                    child: Container(
-                      width: 64,
-                      height: 64,
-                      margin: const EdgeInsets.symmetric(horizontal: 6),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.4),
-                          width: 1,
-                        ),
-                        boxShadow: absDiff < 0.3
-                            ? [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.4),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ]
-                            : [],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(13),
-                        child: widget.poses[index].imagePath != null
-                            ? Image.asset(
-                                widget.poses[index].imagePath!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(
-                                  color: const Color(0xFF1A1A1A),
-                                  child: const Icon(
-                                    Icons.image,
-                                    color: Colors.white38,
-                                    size: 22,
+              offset: Offset(0, verticalOffset),
+              child: Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.identity()
+                  ..setEntry(3, 2, 0.0015)
+                  ..rotateY(angle * 0.4),
+                child: Transform.scale(
+                  scale: scale,
+                  child: Opacity(
+                    opacity: opacity,
+                    child: Center(
+                      child: Container(
+                        width: 64,
+                        height: 64,
+                        margin: const EdgeInsets.symmetric(horizontal: 6),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.4),
+                            width: 1,
+                          ),
+                          boxShadow: absDiff < 0.3
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.4),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
                                   ),
-                                ),
-                              )
-                            : Container(color: const Color(0xFF1A1A1A)),
+                                ]
+                              : [],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(13),
+                          child: widget.poses[index].imagePath != null
+                              ? Image.asset(
+                                  widget.poses[index].imagePath!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    color: const Color(0xFF1A1A1A),
+                                    child: const Icon(
+                                      Icons.image,
+                                      color: Colors.white38,
+                                      size: 22,
+                                    ),
+                                  ),
+                                )
+                              : Container(color: const Color(0xFF1A1A1A)),
+                        ),
                       ),
                     ),
                   ),
-               ),
                 ),
               ),
             ),

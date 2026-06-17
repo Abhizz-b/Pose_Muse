@@ -42,7 +42,8 @@ class LocalPose {
 
 class CatalogScreen extends StatefulWidget {
   final List<PoseModel>? scannedPoses;
-  const CatalogScreen({super.key, this.scannedPoses});
+  final List<PoseModel>? initiallySelected;
+  const CatalogScreen({super.key, this.scannedPoses, this.initiallySelected});
 
   @override
   State<CatalogScreen> createState() => _CatalogScreenState();
@@ -70,7 +71,19 @@ class _CatalogScreenState extends State<CatalogScreen>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _loadMyPoses();
-    _loadLocalPoses();
+    _loadLocalPoses().then((_) {
+      if (widget.initiallySelected != null) {
+        setState(() {
+          for (final pose in widget.initiallySelected!) {
+            final match = _allPoses.where((p) => p.name == pose.name);
+            if (match.isNotEmpty &&
+                !_selectedPoses.any((p) => p.name == pose.name)) {
+              _selectedPoses.add(match.first);
+            }
+          }
+        });
+      }
+    });
   }
 
   @override
