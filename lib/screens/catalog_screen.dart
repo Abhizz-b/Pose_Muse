@@ -36,6 +36,7 @@ class LocalPose {
     emoji: '📸',
     difficulty: difficulty,
     cameraAngle: 'Eye Level',
+    imagePath: image,
   );
 }
 

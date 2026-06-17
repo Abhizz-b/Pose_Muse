@@ -465,6 +465,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ],
         ),
+        if (_shootPoses.isNotEmpty) ...[
+          _PoseWheelCarousel(
+            poses: _shootPoses,
+            controller: _wheelController,
+            onCenterChanged: (i) => setState(() => _wheelCenterIndex = i),
+          ),
+          const SizedBox(height: 10),
+        ],
         const SizedBox(height: 14),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -786,4 +794,133 @@ class _GridScanPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_GridScanPainter old) => old.progress != progress;
+}
+
+class _PoseWheelCarousel extends StatefulWidget {
+  final List<PoseModel> poses;
+  final PageController controller;
+  final ValueChanged<int> onCenterChanged;
+
+  const _PoseWheelCarousel({
+    required this.poses,
+    required this.controller,
+    required this.onCenterChanged,
+  });
+
+  @override
+  State<_PoseWheelCarousel> createState() => _PoseWheelCarouselState();
+}
+
+class _PoseWheelCarouselState extends State<_PoseWheelCarousel> {
+  double _page = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (!widget.controller.hasClients) return;
+    setState(() {
+      _page = widget.controller.page ?? 0;
+    });
+    final nearest = _page.round().clamp(0, widget.poses.length - 1);
+    widget.onCenterChanged(nearest);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onScroll);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 100,
+      child: PageView.builder(
+        controller: widget.controller,
+        itemCount: widget.poses.length,
+        physics: const BouncingScrollPhysics(),
+        itemBuilder: (context, index) {
+          final diff = (index - _page);
+          final absDiff = diff.abs().clamp(0.0, 2.0);
+
+          // Scale: center = 1.0, sides shrink
+          final scale = 1.0 - (absDiff * 0.28).clamp(0.0, 0.55);
+
+          // Curve: simulate a circular wheel path
+          final angle = diff * 0.55; // radians tilt
+          final verticalOffset = absDiff * absDiff * 14; // dips down on sides
+          final opacity = (1.0 - absDiff * 0.45).clamp(0.35, 1.0);
+
+          return GestureDetector(
+            onTap: () {
+              widget.controller.animateToPage(
+                index,
+                duration: const Duration(milliseconds: 450),
+                curve: Curves.easeOutCubic,
+              );
+            },
+            child: Transform.translate(
+            offset: Offset(0, verticalOffset),
+            child: Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.identity()
+                ..setEntry(3, 2, 0.0015)
+                ..rotateY(angle * 0.4),
+              child: Transform.scale(
+                scale: scale,
+                child: Opacity(
+                  opacity: opacity,
+                  child: Center(
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      margin: const EdgeInsets.symmetric(horizontal: 6),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.4),
+                          width: 1,
+                        ),
+                        boxShadow: absDiff < 0.3
+                            ? [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.4),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ]
+                            : [],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(13),
+                        child: widget.poses[index].imagePath != null
+                            ? Image.asset(
+                                widget.poses[index].imagePath!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  color: const Color(0xFF1A1A1A),
+                                  child: const Icon(
+                                    Icons.image,
+                                    color: Colors.white38,
+                                    size: 22,
+                                  ),
+                                ),
+                              )
+                            : Container(color: const Color(0xFF1A1A1A)),
+                      ),
+                    ),
+                  ),
+               ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 }

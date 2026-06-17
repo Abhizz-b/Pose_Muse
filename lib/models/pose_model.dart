@@ -4,6 +4,7 @@ class PoseModel {
   final String difficulty;
   final String cameraAngle;
   final String emoji;
+  final String? imagePath;
   bool isFavourite;
 
   PoseModel({
@@ -12,6 +13,7 @@ class PoseModel {
     required this.difficulty,
     required this.cameraAngle,
     required this.emoji,
+    this.imagePath,
     this.isFavourite = false,
   });
 
@@ -21,6 +23,7 @@ class PoseModel {
     'difficulty': difficulty,
     'cameraAngle': cameraAngle,
     'emoji': emoji,
+    'imagePath': imagePath,
   };
 
   factory PoseModel.fromJson(Map<String, dynamic> json) => PoseModel(
@@ -29,5 +32,6 @@ class PoseModel {
     difficulty: json['difficulty'],
     cameraAngle: json['cameraAngle'],
     emoji: json['emoji'],
+    imagePath: json['imagePath'],
   );
 }
