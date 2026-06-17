@@ -273,7 +273,10 @@ class _CatalogScreenState extends State<CatalogScreen>
             GestureDetector(
               onTap: () => setState(() => _selectedPoses.clear()),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: _surface,
                   borderRadius: BorderRadius.circular(20),
@@ -368,10 +371,6 @@ class _CatalogScreenState extends State<CatalogScreen>
       ),
       child: Column(
         children: [
-          if (hasSelection) ...[
-            _buildStackPreview(previewPoses, count),
-            const SizedBox(height: 10),
-          ],
           SizedBox(
             width: double.infinity,
             height: 52,
@@ -415,79 +414,6 @@ class _CatalogScreenState extends State<CatalogScreen>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildStackPreview(List<LocalPose> poses, int total) {
-    const double cardW = 52.0;
-    const double cardH = 68.0;
-    const double overlap = 18.0;
-    final double totalWidth = cardW + (poses.length - 1) * (cardW - overlap);
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        SizedBox(
-          width: totalWidth + 16,
-          height: cardH + 8,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              for (int i = poses.length - 1; i >= 0; i--)
-                Positioned(
-                  left: i * (cardW - overlap),
-                  child: Transform.rotate(
-                    angle: (i - poses.length / 2) * 0.06,
-                    child: Container(
-                      width: cardW,
-                      height: cardH,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: _orange.withOpacity(0.8),
-                          width: 2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.4),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: Image.asset(
-                          poses[i].image,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: const Color(0xFF2A2A2A),
-                            child: const Icon(
-                              Icons.image,
-                              color: Colors.white38,
-                              size: 18,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        if (total > 3) ...[
-          const SizedBox(width: 8),
-          Text(
-            '+${total - 3}',
-            style: TextStyle(
-              color: _orange,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ],
     );
   }
 }
@@ -865,18 +791,13 @@ class _LocalPoseCard extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          // ✅ Glow effect — white soft glow like Screenshot 1
+          // subtle glow when selected
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: Colors.white.withOpacity(0.60),
-                    blurRadius: 20,
-                    spreadRadius: 2,
-                  ),
-                  BoxShadow(
-                    color: Colors.white.withOpacity(0.20),
-                    blurRadius: 45,
-                    spreadRadius: 8,
+                    color: Colors.white.withOpacity(0.25),
+                    blurRadius: 8,
+                    spreadRadius: 0.5,
                   ),
                 ]
               : [],
