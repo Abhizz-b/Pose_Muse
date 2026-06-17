@@ -27,6 +27,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _timerSeconds = 0;
   String _statusMessage = '';
   bool _noPersonDetected = false;
+  List<PoseModel> _shootPoses = [];
+  int _wheelCenterIndex = 0;
+  late PageController _wheelController;
 
   late AnimationController _scanLineController;
   late Animation<double> _scanLineAnim;
@@ -64,6 +67,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _statusFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _statusFadeController, curve: Curves.easeIn),
     );
+    _wheelController = PageController(viewportFraction: 0.32);
     _initCamera();
   }
 
@@ -216,6 +220,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void dispose() {
     _cameraController?.dispose();
+    _wheelController.dispose();
     _scanLineController.dispose();
     _statusFadeController.dispose();
     DetectionService.dispose();
@@ -282,16 +287,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             left: 0,
             right: 0,
             child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withOpacity(0.85),
-                    Colors.black.withOpacity(0.0),
-                  ],
-                ),
-              ),
+              decoration: const BoxDecoration(color: Colors.black),
               padding: EdgeInsets.only(
                 top: topPad + 6,
                 left: 14,
@@ -406,16 +402,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             left: 0,
             right: 0,
             child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [
-                    Colors.black.withOpacity(0.92),
-                    Colors.black.withOpacity(0.0),
-                  ],
-                ),
-              ),
+              decoration: const BoxDecoration(color: Colors.black),
               padding: EdgeInsets.only(
                 top: 20,
                 left: 20,
@@ -464,13 +451,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             _ActionPill(
               icon: Icons.person_search_outlined,
               label: 'Catalog',
-             onTap: () async {
+              onTap: () async {
                 final selected = await Navigator.push<List<PoseModel>>(
                   context,
                   MaterialPageRoute(builder: (_) => const CatalogScreen()),
                 );
                 if (selected != null && selected.isNotEmpty) {
-                  // selected poses use karo shoot ke liye
+                  setState(() {
+                    _shootPoses.addAll(selected);
+                  });
                 }
               },
             ),
@@ -585,7 +574,7 @@ class _ZoomBtn extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.5),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withOpacity(0.2), width: 0.8),
+          border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
         ),
         child: Center(
           child: Text(
@@ -622,7 +611,7 @@ class _ActionPill extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.55),
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white.withOpacity(0.2), width: 0.8),
+          border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -659,7 +648,7 @@ class _SideBtn extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.black.withOpacity(0.5),
-          border: Border.all(color: Colors.white.withOpacity(0.2), width: 0.8),
+          border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
         ),
         child: Icon(icon, color: Colors.white, size: 20),
       ),
