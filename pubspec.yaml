@@ -40,6 +40,11 @@ flutter_native_splash:
 flutter:
   uses-material-design: true
 
+  fonts:
+    - family: DancingScript
+      fonts:
+        - asset: assets/fonts/DancingScript-VariableFont_wght.ttf
+
   assets:
     - assets/poses/
     - assets/poses.json

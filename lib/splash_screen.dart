@@ -10,46 +10,60 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
-  String _displayedText = '';
-  final String _fullText = 'Pose Muse';
-  bool _showTagline = false;
-  bool _showCursor = true;
+  String _taglineText = '';
+  final String _fullTagline = 'STRIKE THE PERFECT POSE';
+  bool _showCursor = false;
 
-  late AnimationController _taglineController;
-  late Animation<double> _taglineFade;
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnim;
+  late AnimationController _lineController;
+  late Animation<double> _lineAnim;
 
   @override
   void initState() {
     super.initState();
 
-    _taglineController = AnimationController(
+    _fadeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 2000),
     );
-    _taglineFade = Tween<double>(begin: 0, end: 1).animate(_taglineController);
+    _fadeAnim = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeIn));
 
-    _startAnimation();
+    _lineController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _lineAnim = Tween<double>(begin: 0, end: 1).animate(_lineController);
+
+    _startSequence();
     _navigateToHome();
   }
 
-  void _startAnimation() async {
+  void _startSequence() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    for (int i = 0; i < _fullText.length; i++) {
-      await Future.delayed(const Duration(milliseconds: 90));
+    _fadeController.forward();
+
+    await Future.delayed(const Duration(milliseconds: 2500));
+    _lineController.forward();
+    if (mounted) setState(() => _showCursor = true);
+
+    for (int i = 0; i < _fullTagline.length; i++) {
+      await Future.delayed(const Duration(milliseconds: 55));
       if (mounted) {
         setState(() {
-          _displayedText = _fullText.substring(0, i + 1);
+          _taglineText = _fullTagline.substring(0, i + 1);
         });
       }
     }
     await Future.delayed(const Duration(milliseconds: 400));
     if (mounted) setState(() => _showCursor = false);
-    if (mounted) setState(() => _showTagline = true);
-    _taglineController.forward();
   }
 
   void _navigateToHome() async {
-    await Future.delayed(const Duration(milliseconds: 2800));
+    await Future.delayed(const Duration(milliseconds: 4500));
     if (mounted) {
       Navigator.pushReplacement(
         context,
@@ -60,7 +74,8 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
-    _taglineController.dispose();
+    _fadeController.dispose();
+    _lineController.dispose();
     super.dispose();
   }
 
@@ -72,75 +87,85 @@ class _SplashScreenState extends State<SplashScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // App Icon
+            // Icon
             ClipRRect(
               borderRadius: BorderRadius.circular(22),
               child: Image.asset(
                 'assets/images/app_icon.png',
-                width: 100,
-                height: 100,
+                width: 90,
+                height: 90,
                 fit: BoxFit.cover,
               ),
             ),
             const SizedBox(height: 28),
 
-            // Typewriter Text
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  _displayedText,
-                  style: const TextStyle(
+            // Pose Muse fade in
+            FadeTransition(
+              opacity: _fadeAnim,
+              child: ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Colors.white, Color(0xFFC4A8FF), Color(0xFF9C6FFF)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ).createShader(bounds),
+                child: const Text(
+                  'Pose Muse',
+                  style: TextStyle(
                     fontFamily: 'DancingScript',
-                    fontSize: 44,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 52,
+                    fontWeight: FontWeight.w700,
                     color: Colors.white,
+                    letterSpacing: 1,
                   ),
                 ),
-                if (_showCursor)
-                  Container(
-                    width: 2,
-                    height: 30,
-                    margin: const EdgeInsets.only(left: 2),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Tagline typewriter
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                FadeTransition(
+                  opacity: _lineAnim,
+                  child: Container(
+                    width: 18,
+                    height: 1,
                     color: const Color(0xFF9C6FFF),
                   ),
+                ),
+                const SizedBox(width: 10),
+                Row(
+                  children: [
+                    Text(
+                      _taglineText,
+                      style: const TextStyle(
+                        fontFamily: 'Outfit',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFC4A8FF),
+                        letterSpacing: 2.5,
+                      ),
+                    ),
+                    if (_showCursor)
+                      Container(
+                        width: 1.5,
+                        height: 12,
+                        margin: const EdgeInsets.only(left: 1),
+                        color: const Color(0xFF9C6FFF),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 10),
+                FadeTransition(
+                  opacity: _lineAnim,
+                  child: Container(
+                    width: 18,
+                    height: 1,
+                    color: const Color(0xFF9C6FFF),
+                  ),
+                ),
               ],
-            ),
-            const SizedBox(height: 16),
-
-            // Tagline
-            FadeTransition(
-              opacity: _taglineFade,
-              child: _showTagline
-                  ? Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 14,
-                          height: 1,
-                          color: const Color(0xFF9C6FFF),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'STRIKE THE PERFECT POSE',
-                          style: TextStyle(
-                            fontFamily: 'Outfit',
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                            letterSpacing: 2.5,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          width: 14,
-                          height: 1,
-                          color: const Color(0xFF9C6FFF),
-                        ),
-                      ],
-                    )
-                  : const SizedBox(),
             ),
           ],
         ),
