@@ -59,7 +59,7 @@ class _CatalogScreenState extends State<CatalogScreen>
 
   final List<LocalPose> _selectedPoses = [];
 
-  static const Color _orange = Color(0xFFFF6B00);
+  static const Color _orange = Color(0xFF9C6FFF);
   static const Color _bg = Color(0xFF0D0D0D);
   static const Color _surface = Color(0xFF1A1A1A);
   static const Color _textPrimary = Colors.white;
@@ -340,8 +340,6 @@ class _CatalogScreenState extends State<CatalogScreen>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Genius'),
-                const SizedBox(width: 2),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 4,

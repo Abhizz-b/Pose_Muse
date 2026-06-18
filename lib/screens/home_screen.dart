@@ -37,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late Animation<double> _statusFade;
 
   static const _purple = Color(0xFF9C6FFF);
-  static const _orange = Color(0xFFE8A020);
+  static const _orange = Color(0xFF9C6FFF);
 
   @override
   void initState() {
@@ -678,7 +678,7 @@ class _ShutterBtn extends StatelessWidget {
   final bool isScanning;
   final VoidCallback? onTap;
   static const _purple = Color(0xFF9C6FFF);
-  static const _orange = Color(0xFFE8A020);
+  static const _orange = Color(0xFF9C6FFF);
 
   const _ShutterBtn({required this.isScanning, required this.onTap});
 

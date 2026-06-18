@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'screens/home_screen.dart';
+import 'splash_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,7 +33,7 @@ class PoseMuseApp extends StatelessWidget {
         ),
         scaffoldBackgroundColor: const Color(0xFF000000),
       ),
-      home: const HomeScreen(),
+      home: SplashScreen(),
     );
   }
 }
