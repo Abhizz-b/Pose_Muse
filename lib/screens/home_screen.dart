@@ -172,7 +172,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       setState(() => _noPersonDetected = true);
       return;
     }
-    _showResults(result);
+    // Step 1: scan complete -> open Catalog directly on AI Picks tab
+    _openCatalog(
+      tabIndex: 0,
+      scannedPoses: [
+        PoseModel(
+          name: 'dummy',
+          description: '',
+          difficulty: 'easy',
+          cameraAngle: '',
+          emoji: '',
+        ),
+      ],
+    );
   }
 
   void _showResults(DetectionResult result) {
@@ -217,13 +229,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> _openCatalog() async {
+  Future<void> _openCatalog({
+    int tabIndex = 1,
+    List<PoseModel>? scannedPoses,
+  }) async {
     final selected = await Navigator.push<List<PoseModel>>(
       context,
       MaterialPageRoute(
         builder: (_) => CatalogScreen(
           initiallySelected: _shootPoses,
-          initialTabIndex: 0, // AI Picks tab
+          initialTabIndex:
+              tabIndex, // 0 = AI Picks, 1 = All Poses, 2 = My Poses
+          scannedPoses: scannedPoses,
         ),
       ),
     );
