@@ -43,7 +43,9 @@ class LocalPose {
 class CatalogScreen extends StatefulWidget {
   final List<PoseModel>? scannedPoses;
   final List<PoseModel>? initiallySelected;
-  const CatalogScreen({super.key, this.scannedPoses, this.initiallySelected});
+  final int initialTabIndex;
+  const CatalogScreen({super.key, this.scannedPoses, this.initiallySelected, this.initialTabIndex = 0,
+  });
 
   @override
   State<CatalogScreen> createState() => _CatalogScreenState();
@@ -69,7 +71,11 @@ class _CatalogScreenState extends State<CatalogScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: widget.initialTabIndex,
+    );
     _loadMyPoses();
     _loadLocalPoses().then((_) {
       if (widget.initiallySelected != null) {
@@ -586,41 +592,6 @@ class _AllPosesTabState extends State<_AllPosesTab> {
     }
     return Column(
       children: [
-        SizedBox(
-          height: 44,
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            scrollDirection: Axis.horizontal,
-            itemCount: _filters.length,
-            itemBuilder: (_, i) {
-              final f = _filters[i];
-              final sel = f == _filter;
-              return GestureDetector(
-                onTap: () => setState(() => _filter = f),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: sel ? widget.orange : widget.surface,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    f == 'All' ? 'All' : f[0].toUpperCase() + f.substring(1),
-                    style: TextStyle(
-                      color: sel ? Colors.white : widget.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
         Expanded(
           child: GridView.builder(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),

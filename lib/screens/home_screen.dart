@@ -217,6 +217,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
+  Future<void> _openCatalog() async {
+    final selected = await Navigator.push<List<PoseModel>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CatalogScreen(
+          initiallySelected: _shootPoses,
+          initialTabIndex: 0, // AI Picks tab
+        ),
+      ),
+    );
+    if (selected != null) {
+      setState(() => _shootPoses = selected);
+    }
+  }
+
   @override
   void dispose() {
     _cameraController?.dispose();
@@ -404,10 +419,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Container(
               decoration: const BoxDecoration(color: Colors.black),
               padding: EdgeInsets.only(
-                top: 20,
+                top: 28,
                 left: 20,
                 right: 20,
-                bottom: bottomPad + 12,
+                bottom: bottomPad + 16,
               ),
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
@@ -423,78 +438,121 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildDetectBottom() {
-    return Column(
-      key: const ValueKey('detect'),
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Text(
-          'Scan Now or Browse Poses',
-          style: TextStyle(
-            color: Colors.white54,
-            fontSize: 12,
-            letterSpacing: 0.3,
+    if (_shootPoses.isEmpty) {
+      return Column(
+        key: const ValueKey('detect-empty'),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Add poses to your camera',
+            style: TextStyle(
+              color: Colors.white54,
+              fontSize: 13,
+              letterSpacing: 0.3,
+            ),
           ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _ActionPill(
-              icon: Icons.document_scanner_outlined,
-              label: 'Scan',
-              onTap: () {
-                setState(() => _noPersonDetected = false);
-                _startScan();
-              },
-            ),
-            const SizedBox(width: 10),
-            _ActionPill(
-              icon: Icons.person_search_outlined,
-              label: 'Catalog',
-              onTap: () async {
-                final selected = await Navigator.push<List<PoseModel>>(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        CatalogScreen(initiallySelected: _shootPoses),
-                  ),
-                );
-                if (selected != null && selected.isNotEmpty) {
-                  setState(() {
-                    for (final pose in selected) {
-                      final exists = _shootPoses.any(
-                        (p) => p.name == pose.name,
-                      );
-                      if (!exists) {
-                        _shootPoses.add(pose);
-                      }
-                    }
-                  });
-                }
-              },
-            ),
-          ],
-        ),
-        if (_shootPoses.isNotEmpty) ...[
-          _PoseWheelCarousel(
-            poses: _shootPoses,
-            controller: _wheelController,
-            onCenterChanged: (i) => setState(() => _wheelCenterIndex = i),
+          const SizedBox(height: 16),
+          _WidePill(
+            icon: Icons.crop_free_rounded,
+            label: 'Scan scene to add poses',
+            iconColor: const Color(0xFFE8A020),
+            onTap: () {
+              setState(() => _noPersonDetected = false);
+              _startScan();
+            },
           ),
           const SizedBox(height: 10),
+          _WidePill(
+            icon: Icons.person_rounded,
+            label: 'Select poses from catalog',
+            iconColor: _orange,
+            onTap: _openCatalog,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _SideBtn(icon: Icons.photo_outlined, onTap: () {}),
+              _SideBtn(
+                icon: Icons.flip_camera_android_outlined,
+                onTap: _flipCamera,
+              ),
+            ],
+          ),
         ],
+      );
+    }
+
+    return Column(
+      key: const ValueKey('detect-with-poses'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _PoseWheelCarousel(
+          poses: _shootPoses,
+          controller: _wheelController,
+          onCenterChanged: (index) {
+            setState(() => _wheelCenterIndex = index);
+          },
+        ),
         const SizedBox(height: 14),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            // gallery
             _SideBtn(icon: Icons.photo_outlined, onTap: () {}),
-            _ShutterBtn(
-              isScanning: false,
+            // small scan
+            _SideBtn(
+              icon: Icons.document_scanner_outlined,
               onTap: () {
                 setState(() => _noPersonDetected = false);
                 _startScan();
               },
             ),
+            // shutter
+            _ShutterBtn(
+              isScanning: false,
+              onTap: () {
+                HapticFeedback.mediumImpact();
+                // TODO: hook this up to actual photo capture once ready
+              },
+            ),
+            // catalog with badge
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                _SideBtn(
+                  icon: Icons.person_search_outlined,
+                  onTap: _openCatalog,
+                ),
+                if (_shootPoses.isNotEmpty)
+                  Positioned(
+                    top: -4,
+                    right: -4,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: _orange,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 18,
+                        minHeight: 18,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${_shootPoses.length}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            // flip camera
             _SideBtn(
               icon: Icons.flip_camera_android_outlined,
               onTap: _flipCamera,
@@ -609,15 +667,17 @@ class _ZoomBtn extends StatelessWidget {
   }
 }
 
-class _ActionPill extends StatelessWidget {
+class _WidePill extends StatelessWidget {
   final IconData icon;
   final String label;
+  final Color iconColor;
   final VoidCallback onTap;
 
-  const _ActionPill({
+  const _WidePill({
     required this.icon,
     required this.label,
     required this.onTap,
+    this.iconColor = Colors.white,
   });
 
   @override
@@ -625,23 +685,23 @@ class _ActionPill extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.55),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
+          color: Colors.white.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(28),
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.white, size: 15),
-            const SizedBox(width: 6),
+            Icon(icon, color: iconColor, size: 18),
+            const SizedBox(width: 10),
             Text(
               label,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -857,12 +917,9 @@ class _PoseWheelCarouselState extends State<_PoseWheelCarousel> {
           final diff = (index - _page);
           final absDiff = diff.abs().clamp(0.0, 2.0);
 
-          // Scale: center = 1.0, sides shrink
           final scale = 1.0 - (absDiff * 0.28).clamp(0.0, 0.55);
-
-          // Curve: simulate a circular wheel path
-          final angle = diff * 0.55; // radians tilt
-          final verticalOffset = absDiff * absDiff * 14; // dips down on sides
+          final angle = diff * 0.55;
+          final verticalOffset = absDiff * absDiff * 14;
           final opacity = (1.0 - absDiff * 0.45).clamp(0.35, 1.0);
 
           return GestureDetector(
