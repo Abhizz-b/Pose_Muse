@@ -194,7 +194,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
           ),
           const Spacer(),
           const Text(
-            'Gallery',
+            'My Photos',
             style: TextStyle(
               color: Colors.white,
               fontSize: 17,
