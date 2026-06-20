@@ -23,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   List<CameraDescription> _cameras = [];
   bool _isInitialized = false;
   bool _isScanning = false;
+  bool _showFlash = false;
   bool _isFrontCamera = false;
   bool _flashOn = false;
   String _zoomLabel = '1x';
@@ -263,19 +264,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return;
     }
     HapticFeedback.mediumImpact();
+
+    // Blink/flash effect — screen goes black briefly then fades back
+    setState(() => _showFlash = true);
+    Future.delayed(const Duration(milliseconds: 80), () {
+      if (mounted) setState(() => _showFlash = false);
+    });
+
     try {
       final XFile file = await _cameraController!.takePicture();
       await PhotoStorageService.savePhoto(file.path);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Photo saved!'),
-            backgroundColor: _orange,
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 1),
-          ),
-        );
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -347,6 +345,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           // ORANGE CORNER BRACKETS
           Positioned.fill(
             child: CustomPaint(painter: _CornerPainter(color: _orange)),
+          ),
+          // SHUTTER FLASH/BLINK EFFECT
+          Positioned.fill(
+            child: AnimatedOpacity(
+              opacity: _showFlash ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 80),
+              child: Container(color: Colors.black),
+            ),
           ),
 
           // TOP BAR
