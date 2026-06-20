@@ -1,4 +1,6 @@
 ﻿import 'package:flutter/material.dart';
+import '../services/photo_storage_service.dart';
+import 'gallery_screen.dart';
 import 'catalog_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
@@ -249,6 +251,40 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
+  void _openGallery() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const GalleryScreen()),
+    );
+  }
+
+  Future<void> _capturePhoto() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      return;
+    }
+    HapticFeedback.mediumImpact();
+    try {
+      final XFile file = await _cameraController!.takePicture();
+      await PhotoStorageService.savePhoto(file.path);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Photo saved!'),
+            backgroundColor: _orange,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to capture photo: $e')));
+      }
+    }
+  }
+
   @override
   void dispose() {
     _cameraController?.dispose();
@@ -489,7 +525,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _SideBtn(icon: Icons.photo_outlined, onTap: () {}),
+              _SideBtn(icon: Icons.photo_outlined, onTap: _openGallery),
               _SideBtn(
                 icon: Icons.flip_camera_android_outlined,
                 onTap: _flipCamera,
@@ -516,7 +552,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             // gallery
-            _SideBtn(icon: Icons.photo_outlined, onTap: () {}),
+            _SideBtn(icon: Icons.photo_outlined, onTap: _openGallery),
             // small scan
             _SideBtn(
               icon: Icons.document_scanner_outlined,
@@ -526,13 +562,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               },
             ),
             // shutter
-            _ShutterBtn(
-              isScanning: false,
-              onTap: () {
-                HapticFeedback.mediumImpact();
-                // TODO: hook this up to actual photo capture once ready
-              },
-            ),
+            _ShutterBtn(isScanning: false, onTap: _capturePhoto),
             // catalog with badge
             Stack(
               clipBehavior: Clip.none,
@@ -585,7 +615,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       key: const ValueKey('scanning'),
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _SideBtn(icon: Icons.photo_outlined, onTap: () {}),
+        _SideBtn(icon: Icons.photo_outlined, onTap: _openGallery),
         _ShutterBtn(isScanning: true, onTap: null),
         _SideBtn(icon: Icons.flip_camera_android_outlined, onTap: _flipCamera),
       ],
