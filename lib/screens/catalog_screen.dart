@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -44,7 +45,11 @@ class CatalogScreen extends StatefulWidget {
   final List<PoseModel>? scannedPoses;
   final List<PoseModel>? initiallySelected;
   final int initialTabIndex;
-  const CatalogScreen({super.key, this.scannedPoses, this.initiallySelected, this.initialTabIndex = 0,
+  const CatalogScreen({
+    super.key,
+    this.scannedPoses,
+    this.initiallySelected,
+    this.initialTabIndex = 0,
   });
 
   @override
@@ -770,81 +775,52 @@ class _LocalPoseCard extends StatelessWidget {
     return GestureDetector(
       onTap: onToggleSelect,
       onLongPress: onLongPress != null ? () => onLongPress!() : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          // subtle glow when selected
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.white.withOpacity(0.25),
-                    blurRadius: 8,
-                    spreadRadius: 0.5,
-                  ),
-                ]
-              : [],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Pose image
-              Image.asset(
-                pose.image,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  color: const Color(0xFF1C1C1C),
-                  child: const Center(
-                    child: Icon(
-                      Icons.image_not_supported,
-                      color: Colors.white38,
-                      size: 32,
-                    ),
-                  ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Glow that follows the cutout's actual shape (not a box)
+          if (isSelected)
+            ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+              child: ColorFiltered(
+                colorFilter: ColorFilter.mode(
+                  orange.withOpacity(0.9),
+                  BlendMode.srcIn,
                 ),
+                child: Image.asset(pose.image, fit: BoxFit.contain),
               ),
+            ),
 
-              // Subtle vignette
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.25),
-                      ],
-                      stops: const [0.65, 1.0],
-                    ),
-                  ),
-                ),
-              ),
-
-              // ✅ Checkmark only — no SS badge
-              if (isSelected)
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    width: 26,
-                    height: 26,
-                    decoration: BoxDecoration(
-                      color: orange,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check_rounded,
-                      color: Colors.white,
-                      size: 15,
-                    ),
-                  ),
-                ),
-            ],
+          // Sharp image on top — no box, floats on screen bg
+          Image.asset(
+            pose.image,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Icon(
+              Icons.image_not_supported,
+              color: Colors.white38,
+              size: 32,
+            ),
           ),
-        ),
+
+          if (isSelected)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: orange,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_rounded,
+                  color: Colors.white,
+                  size: 14,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
