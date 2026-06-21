@@ -522,7 +522,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           const SizedBox(height: 10),
           _WidePill(
-            icon: Icons.person_rounded,
+            icon: Icons.auto_awesome_rounded,
             label: 'Select poses from catalog',
             iconColor: _orange,
             onTap: _openCatalog,
@@ -531,7 +531,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _SideBtn(icon: Icons.photo_outlined, onTap: _openGallery),
+              _SideBtn(icon: Icons.photo_library_rounded, onTap: _openGallery),
               _SideBtn(
                 icon: Icons.flip_camera_android_outlined,
                 onTap: _flipCamera,
@@ -558,7 +558,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             // gallery
-            _SideBtn(icon: Icons.photo_outlined, onTap: _openGallery),
+            _SideBtn(icon: Icons.photo_library_rounded, onTap: _openGallery),
             // small scan
             _SideBtn(
               icon: Icons.document_scanner_outlined,
@@ -573,10 +573,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             Stack(
               clipBehavior: Clip.none,
               children: [
-                _SideBtn(
-                  icon: Icons.person_search_outlined,
-                  onTap: _openCatalog,
-                ),
+                _SideBtn(icon: Icons.auto_awesome_rounded, onTap: _openCatalog),
                 if (_shootPoses.isNotEmpty)
                   Positioned(
                     top: -4,
@@ -621,7 +618,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       key: const ValueKey('scanning'),
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _SideBtn(icon: Icons.photo_outlined, onTap: _openGallery),
+        _SideBtn(icon: Icons.photo_library_rounded, onTap: _openGallery),
         _ShutterBtn(isScanning: true, onTap: null),
         _SideBtn(icon: Icons.flip_camera_android_outlined, onTap: _flipCamera),
       ],
@@ -790,8 +787,6 @@ class _SideBtn extends StatelessWidget {
 class _ShutterBtn extends StatelessWidget {
   final bool isScanning;
   final VoidCallback? onTap;
-  static const _purple = Color(0xFF9C6FFF);
-  static const _orange = Color(0xFF9C6FFF);
 
   const _ShutterBtn({required this.isScanning, required this.onTap});
 
@@ -802,9 +797,16 @@ class _ShutterBtn extends StatelessWidget {
       child: Container(
         width: 70,
         height: 70,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: isScanning ? _purple : _orange, width: 3),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFD9C2FF), // light lavender
+              Color(0xFF6B2FD6), // deep violet
+            ],
+          ),
         ),
         child: Center(
           child: Container(
@@ -813,7 +815,7 @@ class _ShutterBtn extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: isScanning
-                  ? _purple.withOpacity(0.4)
+                  ? const Color(0xFF9C6FFF).withOpacity(0.4)
                   : Colors.black.withOpacity(0.6),
             ),
             child: isScanning
