@@ -402,8 +402,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
           const SizedBox(height: 6),
           Text(
             _showFavouritesOnly
-                ? 'Heart a photo to see it here'
-                : 'Photos you take will show up here',
+                ? 'Bestie, double-tap your iconic shots to save them here <3 '
+                : 'Bestie, snap your first iconic shot ',
             style: const TextStyle(color: Colors.white38, fontSize: 13),
           ),
         ],
