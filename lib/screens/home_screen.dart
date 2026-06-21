@@ -522,7 +522,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           const SizedBox(height: 10),
           _WidePill(
-            icon: Icons.auto_awesome_rounded,
+            icon: Icons.person_outline_rounded,
             label: 'Select poses from catalog',
             iconColor: _orange,
             onTap: _openCatalog,
@@ -561,7 +561,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             _SideBtn(icon: Icons.photo_library_rounded, onTap: _openGallery),
             // small scan
             _SideBtn(
-              icon: Icons.document_scanner_outlined,
+              icon: Icons.crop_free_rounded,
               onTap: () {
                 setState(() => _noPersonDetected = false);
                 _startScan();
@@ -573,7 +573,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             Stack(
               clipBehavior: Clip.none,
               children: [
-                _SideBtn(icon: Icons.auto_awesome_rounded, onTap: _openCatalog),
+                _SideBtn(
+                  icon: Icons.person_outline_rounded,
+                  onTap: _openCatalog,
+                ),
                 if (_shootPoses.isNotEmpty)
                   Positioned(
                     top: -4,
@@ -784,6 +787,57 @@ class _SideBtn extends StatelessWidget {
   }
 }
 
+// dotted-border circular button (catalog icon style)
+class _DottedSideBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _DottedSideBtn({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: 46,
+        height: 46,
+        child: CustomPaint(
+          painter: _DottedCirclePainter(color: Colors.white.withOpacity(0.6)),
+          child: Center(child: Icon(icon, color: Colors.white, size: 20)),
+        ),
+      ),
+    );
+  }
+}
+
+class _DottedCirclePainter extends CustomPainter {
+  final Color color;
+  _DottedCirclePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.3
+      ..style = PaintingStyle.stroke;
+    final radius = size.width / 2;
+    const dashCount = 20;
+    final sweep = (2 * 3.14159265 / dashCount) * 0.5;
+    for (int i = 0; i < dashCount; i++) {
+      final start = i * (2 * 3.14159265 / dashCount);
+      canvas.drawArc(
+        Rect.fromCircle(center: Offset(radius, radius), radius: radius - 1),
+        start,
+        sweep,
+        false,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
 class _ShutterBtn extends StatelessWidget {
   final bool isScanning;
   final VoidCallback? onTap;
@@ -802,10 +856,7 @@ class _ShutterBtn extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFD9C2FF), // light lavender
-              Color(0xFF6B2FD6), // deep violet
-            ],
+            colors: [Color(0xFFD9C2FF), Color(0xFF6B2FD6)],
           ),
         ),
         child: Center(
@@ -816,7 +867,7 @@ class _ShutterBtn extends StatelessWidget {
               shape: BoxShape.circle,
               color: isScanning
                   ? const Color(0xFF9C6FFF).withOpacity(0.4)
-                  : Colors.black.withOpacity(0.6),
+                  : Colors.black,
             ),
             child: isScanning
                 ? const Center(
@@ -829,11 +880,7 @@ class _ShutterBtn extends StatelessWidget {
                       ),
                     ),
                   )
-                : const Icon(
-                    Icons.camera_alt_rounded,
-                    color: Colors.white,
-                    size: 26,
-                  ),
+                : null,
           ),
         ),
       ),
