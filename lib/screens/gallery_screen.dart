@@ -570,6 +570,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
 }
 
 // ── Full-screen photo viewer with left-right swipe ──
+// ── Full-screen photo viewer with left-right swipe ──
 class _PhotoViewerScreen extends StatefulWidget {
   final List<SavedPhoto> photos;
   final int initialIndex;
@@ -585,11 +586,14 @@ class _PhotoViewerScreen extends StatefulWidget {
   State<_PhotoViewerScreen> createState() => _PhotoViewerScreenState();
 }
 
-class _PhotoViewerScreenState extends State<_PhotoViewerScreen> {
+class _PhotoViewerScreenState extends State<_PhotoViewerScreen>
+    with SingleTickerProviderStateMixin {
   static const Color _orange = Color(0xFF9C6FFF);
   late PageController _pageController;
   late List<SavedPhoto> _photos;
   late int _currentIndex;
+  late AnimationController _heartBounceController;
+  late Animation<double> _heartScale;
 
   @override
   void initState() {
@@ -597,11 +601,32 @@ class _PhotoViewerScreenState extends State<_PhotoViewerScreen> {
     _photos = List.of(widget.photos);
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
+    _heartBounceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    );
+    _heartScale = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(
+          begin: 1.0,
+          end: 1.4,
+        ).chain(CurveTween(curve: Curves.easeOut)),
+        weight: 45,
+      ),
+      TweenSequenceItem(
+        tween: Tween(
+          begin: 1.4,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.elasticOut)),
+        weight: 55,
+      ),
+    ]).animate(_heartBounceController);
   }
 
   @override
   void dispose() {
     _pageController.dispose();
+    _heartBounceController.dispose();
     super.dispose();
   }
 
@@ -610,6 +635,7 @@ class _PhotoViewerScreenState extends State<_PhotoViewerScreen> {
     final photo = _photos[_currentIndex];
     await PhotoStorageService.toggleFavourite(photo.id);
     setState(() => photo.isFavourite = !photo.isFavourite);
+    _heartBounceController.forward(from: 0);
     widget.onChanged();
   }
 
@@ -737,6 +763,7 @@ class _PhotoViewerScreenState extends State<_PhotoViewerScreen> {
                         : Icons.favorite_border_rounded,
                     color: currentPhoto.isFavourite ? _orange : Colors.white,
                     onTap: _toggleFavourite,
+                    scale: _heartScale,
                   ),
                   _actionButton(
                     icon: Icons.share_rounded,
@@ -761,7 +788,9 @@ class _PhotoViewerScreenState extends State<_PhotoViewerScreen> {
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
+    Animation<double>? scale,
   }) {
+    final iconWidget = Icon(icon, color: color, size: 24);
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -771,7 +800,9 @@ class _PhotoViewerScreenState extends State<_PhotoViewerScreen> {
           color: Colors.white.withOpacity(0.08),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: color, size: 24),
+        child: scale != null
+            ? ScaleTransition(scale: scale, child: iconWidget)
+            : iconWidget,
       ),
     );
   }
