@@ -707,15 +707,18 @@ class _PhotoViewerScreenState extends State<_PhotoViewerScreen> {
                 itemCount: _photos.length,
                 onPageChanged: (i) => setState(() => _currentIndex = i),
                 itemBuilder: (_, i) {
-                  return InteractiveViewer(
-                    child: Image.file(
-                      File(_photos[i].path),
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Center(
-                        child: Icon(
-                          Icons.broken_image_outlined,
-                          color: Colors.white38,
-                          size: 48,
+                  return GestureDetector(
+                    onDoubleTap: _toggleFavourite,
+                    child: InteractiveViewer(
+                      child: Image.file(
+                        File(_photos[i].path),
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Center(
+                          child: Icon(
+                            Icons.broken_image_outlined,
+                            color: Colors.white38,
+                            size: 48,
+                          ),
                         ),
                       ),
                     ),
