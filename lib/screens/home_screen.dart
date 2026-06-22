@@ -375,12 +375,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   Row(
                     children: [
                       _CircleTopBtn(
-                        icon: Icons.grain_rounded,
-                        onTap: () {},
-                        tooltip: 'Grid',
-                      ),
-                      const SizedBox(width: 8),
-                      _CircleTopBtn(
                         icon: Icons.timer_outlined,
                         label: _timerSeconds == 0 ? null : '${_timerSeconds}s',
                         active: _timerSeconds > 0,
