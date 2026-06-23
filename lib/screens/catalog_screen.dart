@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:ui';
+import '../models/scan_result.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -42,12 +43,12 @@ class LocalPose {
 }
 
 class CatalogScreen extends StatefulWidget {
-  final List<PoseModel>? scannedPoses;
+  final ScanResult? scanResult;
   final List<PoseModel>? initiallySelected;
   final int initialTabIndex;
   const CatalogScreen({
     super.key,
-    this.scannedPoses,
+    this.scanResult,
     this.initiallySelected,
     this.initialTabIndex = 0,
   });
@@ -214,7 +215,7 @@ class _CatalogScreenState extends State<CatalogScreen>
                 controller: _tabController,
                 children: [
                   _AiPicksTab(
-                    scannedPoses: widget.scannedPoses,
+                    scanResult: widget.scanResult,
                     allPoses: _allPoses,
                     orange: _orange,
                     surface: _surface,
@@ -443,7 +444,7 @@ class _CatalogScreenState extends State<CatalogScreen>
 
 // ── AI Picks Tab ──
 class _AiPicksTab extends StatelessWidget {
-  final List<PoseModel>? scannedPoses;
+  final ScanResult? scanResult;
   final List<LocalPose> allPoses;
   final Color orange, surface, textSecondary;
   final VoidCallback onScanNow;
@@ -453,7 +454,7 @@ class _AiPicksTab extends StatelessWidget {
   final bool Function(LocalPose) isPoseSelected;
 
   const _AiPicksTab({
-    required this.scannedPoses,
+    required this.scanResult,
     required this.allPoses,
     required this.orange,
     required this.surface,
@@ -465,12 +466,19 @@ class _AiPicksTab extends StatelessWidget {
     required this.isPoseSelected,
   });
 
+  List<LocalPose> get _recommended {
+    if (scanResult == ScanResult.fullBody) {
+      return allPoses.where((p) => p.tags.contains('full-body')).toList();
+    }
+    return allPoses.where((p) => p.tags.contains('half-body')).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final hasScanned = scannedPoses != null && scannedPoses!.isNotEmpty;
-    if (!hasScanned) return _buildEmpty();
+    if (scanResult == null) return _buildEmpty();
 
-    final recommended = allPoses.take(4).toList();
+    final recommended = _recommended;
+    if (recommended.isEmpty) return _buildNoMatch();
 
     return GridView.builder(
       padding: const EdgeInsets.all(12),
@@ -491,6 +499,36 @@ class _AiPicksTab extends StatelessWidget {
           onToggleSelect: () => onToggleSelect(pose),
         );
       },
+    );
+  }
+
+  Widget _buildNoMatch() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off_rounded, color: textSecondary, size: 40),
+            const SizedBox(height: 14),
+            const Text(
+              'No matching poses yet',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Add more poses to your catalog\nfor this framing',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: textSecondary, fontSize: 13, height: 1.5),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

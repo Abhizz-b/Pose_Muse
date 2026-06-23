@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import '../models/scan_result.dart';
 import '../services/photo_storage_service.dart';
 import 'gallery_screen.dart';
 import 'catalog_screen.dart';
@@ -163,31 +164,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       await Future.delayed(const Duration(milliseconds: 950));
     }
 
-    final result = await DetectionService.analyze(null, null);
-    if (!mounted) return;
-    setState(() {
-      _isScanning = false;
-      _statusMessage = '';
-    });
-    HapticFeedback.lightImpact();
+    ScanResult scanResult;
+try {
+  scanResult = await DetectionService.analyze(_cameraController!);
+} catch (e) {
+  scanResult = ScanResult.noPerson;
+}
 
-    if (!result.personDetected) {
-      setState(() => _noPersonDetected = true);
-      return;
-    }
-    // Step 1: scan complete -> open Catalog directly on AI Picks tab
-    _openCatalog(
-      tabIndex: 0,
-      scannedPoses: [
-        PoseModel(
-          name: 'dummy',
-          description: '',
-          difficulty: 'easy',
-          cameraAngle: '',
-          emoji: '',
-        ),
-      ],
-    );
+if (!mounted) return;
+setState(() {
+  _isScanning = false;
+  _statusMessage = '';
+});
+HapticFeedback.lightImpact();
+
+if (scanResult == ScanResult.noPerson) {
+  setState(() => _noPersonDetected = true);
+  return;
+}
+
+_openCatalog(tabIndex: 0, scanResult: scanResult);
   }
 
   void _showResults(DetectionResult result) {
@@ -233,24 +229,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _openCatalog({
-    int tabIndex = 1,
-    List<PoseModel>? scannedPoses,
-  }) async {
-    final selected = await Navigator.push<List<PoseModel>>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => CatalogScreen(
-          initiallySelected: _shootPoses,
-          initialTabIndex:
-              tabIndex, // 0 = AI Picks, 1 = All Poses, 2 = My Poses
-          scannedPoses: scannedPoses,
-        ),
+  int tabIndex = 1,
+  ScanResult? scanResult,
+}) async {
+  final selected = await Navigator.push<List<PoseModel>>(
+    context,
+    MaterialPageRoute(
+      builder: (_) => CatalogScreen(
+        initiallySelected: _shootPoses,
+        initialTabIndex: tabIndex,
+        scanResult: scanResult,
       ),
-    );
-    if (selected != null) {
-      setState(() => _shootPoses = selected);
-    }
+    ),
+  );
+  if (selected != null) {
+    setState(() => _shootPoses = selected);
   }
+}
 
   void _openGallery() {
     Navigator.push(
