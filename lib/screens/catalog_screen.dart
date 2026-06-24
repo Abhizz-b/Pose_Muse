@@ -5,42 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/pose_model.dart';
+import 'my_poses_tab.dart';
+import '../models/local_pose.dart';
 
-class LocalPose {
-  final int id;
-  final String image;
-  final String category;
-  final List<String> tags;
-  final String difficulty;
-  final String name;
-
-  const LocalPose({
-    required this.id,
-    required this.image,
-    required this.category,
-    required this.tags,
-    required this.difficulty,
-    required this.name,
-  });
-
-  factory LocalPose.fromJson(Map<String, dynamic> j) => LocalPose(
-    id: j['id'],
-    image: j['image'],
-    category: j['category'],
-    tags: List<String>.from(j['tags']),
-    difficulty: j['difficulty'],
-    name: j['name'],
-  );
-
-  PoseModel toModel() => PoseModel(
-    name: name,
-    description: tags.join(', '),
-    emoji: '📸',
-    difficulty: difficulty,
-    cameraAngle: 'Eye Level',
-    imagePath: image,
-  );
-}
 
 class CatalogScreen extends StatefulWidget {
   final ScanResult? scanResult;
@@ -237,7 +204,7 @@ class _CatalogScreenState extends State<CatalogScreen>
                     onToggleSelect: _togglePoseSelection,
                     isPoseSelected: _isPoseSelected,
                   ),
-                  _MyPosesTab(
+                  MyPosesTab(
                     poses: _myPoses,
                     allLocalPoses: _allPoses,
                     loading: _loadingMy,
@@ -249,6 +216,9 @@ class _CatalogScreenState extends State<CatalogScreen>
                     selectedPoses: _selectedPoses,
                     onToggleSelect: _togglePoseSelection,
                     isPoseSelected: _isPoseSelected,
+                    onAddPose: () {
+                      // TODO: image picker → bg removal → save cutout
+                    }
                   ),
                 ],
               ),
@@ -663,132 +633,7 @@ class _AllPosesTabState extends State<_AllPosesTab> {
 }
 
 // ── My Poses Tab ──
-class _MyPosesTab extends StatelessWidget {
-  final List<PoseModel> poses;
-  final List<LocalPose> allLocalPoses;
-  final bool loading;
-  final Color orange, surface, textSecondary;
-  final Future<void> Function(PoseModel) onRemove;
-  final Future<void> Function() onRefresh;
-  final List<LocalPose> selectedPoses;
-  final void Function(LocalPose) onToggleSelect;
-  final bool Function(LocalPose) isPoseSelected;
 
-  const _MyPosesTab({
-    required this.poses,
-    required this.allLocalPoses,
-    required this.loading,
-    required this.orange,
-    required this.surface,
-    required this.textSecondary,
-    required this.onRemove,
-    required this.onRefresh,
-    required this.selectedPoses,
-    required this.onToggleSelect,
-    required this.isPoseSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (loading) {
-      return Center(
-        child: CircularProgressIndicator(color: orange, strokeWidth: 2),
-      );
-    }
-    if (poses.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.favorite_border_rounded, color: textSecondary, size: 44),
-            const SizedBox(height: 14),
-            Text(
-              'No saved poses yet',
-              style: TextStyle(
-                color: textSecondary,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Heart a pose to see it here',
-              style: TextStyle(color: textSecondary, fontSize: 13),
-            ),
-          ],
-        ),
-      );
-    }
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      color: orange,
-      backgroundColor: surface,
-      child: GridView.builder(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-          childAspectRatio: 0.72,
-        ),
-        itemCount: poses.length,
-        itemBuilder: (_, i) {
-          final pose = poses[i];
-          final matched = allLocalPoses.firstWhere(
-            (l) => l.name == pose.name,
-            orElse: () => allLocalPoses.isNotEmpty
-                ? allLocalPoses[i % allLocalPoses.length]
-                : LocalPose(
-                    id: 0,
-                    image: 'assets/poses/1.png',
-                    category: '',
-                    tags: [],
-                    difficulty: 'easy',
-                    name: pose.name,
-                  ),
-          );
-          return _LocalPoseCard(
-            pose: matched,
-            orange: orange,
-            onSave: (_) async {},
-            isSelected: isPoseSelected(matched),
-            onToggleSelect: () => onToggleSelect(matched),
-            onLongPress: () async {
-              final remove = await showDialog<bool>(
-                context: context,
-                builder: (_) => AlertDialog(
-                  backgroundColor: const Color(0xFF1C1C1C),
-                  title: const Text(
-                    'Remove pose?',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  content: Text(
-                    'Remove "${pose.name}"?',
-                    style: const TextStyle(color: Colors.white54),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text(
-                        'Cancel',
-                        style: TextStyle(color: Colors.white54),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: Text('Remove', style: TextStyle(color: orange)),
-                    ),
-                  ],
-                ),
-              );
-              if (remove == true) onRemove(pose);
-            },
-          );
-        },
-      ),
-    );
-  }
-}
 
 // ── Pose Card — Glow effect on select, NO SS badge, NO name, NO difficulty ──
 class _LocalPoseCard extends StatelessWidget {

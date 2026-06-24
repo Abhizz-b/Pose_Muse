@@ -12,6 +12,7 @@ import '../widgets/results_sheet.dart';
 import '../models/pose_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -366,7 +367,13 @@ _openCatalog(tabIndex: 0, scanResult: scanResult);
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _CircleTopBtn(icon: Icons.settings_outlined, onTap: () {}),
+                  _CircleTopBtn(
+                    icon: Icons.settings_outlined,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                    ),
+                  ),
                   Row(
                     children: [
                       _CircleTopBtn(
