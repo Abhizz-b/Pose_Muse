@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/pose_model.dart';
-import '../models/local_pose.dart'; // LocalPose yahan se import karna padega (niche dekho)
-// ── My Poses Tab — redesigned with cutout style, tabs, albums ──
+import '../models/local_pose.dart';
+
 class MyPosesTab extends StatefulWidget {
   final List<PoseModel> poses;
   final List<LocalPose> allLocalPoses;
@@ -12,7 +12,7 @@ class MyPosesTab extends StatefulWidget {
   final List<LocalPose> selectedPoses;
   final void Function(LocalPose) onToggleSelect;
   final bool Function(LocalPose) isPoseSelected;
-  final VoidCallback onAddPose; // <-- triggers upload+cutout flow (logic later)
+  final VoidCallback onAddPose;
 
   const MyPosesTab({
     required this.poses,
@@ -30,14 +30,13 @@ class MyPosesTab extends StatefulWidget {
   });
 
   @override
-  State<MyPosesTab> createState() => MyPosesTabState();
+  State<MyPosesTab> createState() => _MyPosesTabState();
 }
 
-class MyPosesTabState extends State<MyPosesTab> {
-  int _subTabIndex = 0; // 0 = All, 1 = Favourites, 2 = Albums
+class _MyPosesTabState extends State<MyPosesTab> {
+  int _subTabIndex = 0;
   final List<String> _subTabs = ['All', 'Favourites', 'Albums'];
 
-  // Placeholder — logic baad mein add karenge (favourite flag per pose)
   bool _isFavourite(PoseModel pose) => false;
 
   List<PoseModel> get _filteredPoses {
@@ -45,7 +44,7 @@ class MyPosesTabState extends State<MyPosesTab> {
       case 1:
         return widget.poses.where(_isFavourite).toList();
       case 2:
-        return []; // Albums view handled separately
+        return [];
       default:
         return widget.poses;
     }
@@ -61,7 +60,6 @@ class MyPosesTabState extends State<MyPosesTab> {
 
     return Column(
       children: [
-        _buildHeaderRow(),
         _buildSubTabs(),
         const SizedBox(height: 4),
         Expanded(
@@ -72,44 +70,6 @@ class MyPosesTabState extends State<MyPosesTab> {
               : _buildGrid(),
         ),
       ],
-    );
-  }
-
-  // Header row: title removed (already in CatalogScreen header) —
-  // just a small action row inside the tab for "Add Pose"
-  Widget _buildHeaderRow() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          GestureDetector(
-            onTap: widget.onAddPose,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: widget.orange,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(Icons.add_rounded, color: Colors.white, size: 16),
-                  SizedBox(width: 6),
-                  Text(
-                    'Add Pose',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -155,6 +115,44 @@ class MyPosesTabState extends State<MyPosesTab> {
 
   Widget _buildGrid() {
     final poses = _filteredPoses;
+
+    if (poses.isEmpty && _subTabIndex == 1) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.favorite_border_rounded,
+                color: widget.orange,
+                size: 44,
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'No favourites yet',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Tap the heart on any pose\nto save it here',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: widget.textSecondary,
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return RefreshIndicator(
       onRefresh: widget.onRefresh,
       color: widget.orange,
@@ -167,19 +165,14 @@ class MyPosesTabState extends State<MyPosesTab> {
           mainAxisSpacing: 10,
           childAspectRatio: 3 / 4,
         ),
-        itemCount: poses.length + 1, // +1 for the "Add Pose" dashed card
+        itemCount: poses.length,
         itemBuilder: (_, i) {
-          if (i == poses.length) {
-            return _AddPoseCard(orange: widget.orange, onTap: widget.onAddPose);
-          }
           final pose = poses[i];
           return _MyPoseCard(
             pose: pose,
             orange: widget.orange,
             isFavourite: _isFavourite(pose),
-            onToggleFavourite: () {
-              // TODO: wire up favourite persistence logic
-            },
+            onToggleFavourite: () {},
             onLongPress: () => _confirmRemove(context, pose),
           );
         },
@@ -323,7 +316,6 @@ class MyPosesTabState extends State<MyPosesTab> {
   }
 }
 
-// ── Cutout-style pose card (image floats, no box, heart top-right) ──
 class _MyPoseCard extends StatelessWidget {
   final PoseModel pose;
   final Color orange;
@@ -375,8 +367,8 @@ class _MyPoseCard extends StatelessWidget {
                 child: Container(
                   width: 30,
                   height: 30,
-                  decoration: BoxDecoration(
-                    color: const Color(0x77000000),
+                  decoration: const BoxDecoration(
+                    color: Color(0x77000000),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -396,49 +388,6 @@ class _MyPoseCard extends StatelessWidget {
   }
 }
 
-// ── Dashed "Add Pose" card at end of grid ──
-class _AddPoseCard extends StatelessWidget {
-  final Color orange;
-  final VoidCallback onTap;
-
-  const _AddPoseCard({required this.orange, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: DottedBorderContainer(
-        color: orange,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A1A1A),
-                shape: BoxShape.circle,
-                border: Border.all(color: orange.withOpacity(0.27)),
-              ),
-              child: Icon(Icons.add_rounded, color: orange, size: 20),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Add Pose',
-              style: TextStyle(
-                color: orange,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// Simple dashed-border wrapper since Flutter has no built-in dashed border
 class DottedBorderContainer extends StatelessWidget {
   final Color color;
   final Widget child;
