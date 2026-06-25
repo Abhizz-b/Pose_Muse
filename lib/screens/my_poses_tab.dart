@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/pose_model.dart';
@@ -16,12 +17,11 @@ class MyPosesTab extends StatefulWidget {
   final void Function(LocalPose) onToggleSelect;
   final bool Function(LocalPose) isPoseSelected;
   final VoidCallback onAddPose;
-
-  /// Photos that have been picked and are currently going through the
-  /// background-removal / cutout pipeline. The parent screen owns this
-  /// list: add a file here as soon as it's picked, remove it (and push
-  /// the finished result into `poses`) once the cutout is ready.
   final List<File> processingPoses;
+
+  // ── My Poses selection (PoseModel, separate from LocalPose selection) ──
+  final void Function(PoseModel) onToggleMyPose;
+  final bool Function(PoseModel) isMyPoseSelected;
 
   const MyPosesTab({
     required this.poses,
@@ -36,6 +36,8 @@ class MyPosesTab extends StatefulWidget {
     required this.onToggleSelect,
     required this.isPoseSelected,
     required this.onAddPose,
+    required this.onToggleMyPose,
+    required this.isMyPoseSelected,
     this.processingPoses = const [],
   });
 
@@ -165,7 +167,6 @@ class _MyPosesTabState extends State<MyPosesTab> {
       );
     }
 
-    // The Add tile + in-flight processing cards only live in the "All" tab.
     final showAddTile = _subTabIndex == 0;
     final processing = _subTabIndex == 0
         ? widget.processingPoses
@@ -200,15 +201,16 @@ class _MyPosesTabState extends State<MyPosesTab> {
           }
 
           final pose = poses[processingIndex - processing.length];
-          // 2-second hold (not the default ~500ms long-press) triggers the
-          // remove confirmation. _MyPoseCard itself has no gesture of its
-          // own anymore — this wrapper owns press feedback + the timer.
+          final isSelected = widget.isMyPoseSelected(pose);
+
           return _HoldToRemove(
             onHoldComplete: () => _confirmRemove(context, pose),
+            onTap: () => widget.onToggleMyPose(pose),
             child: _MyPoseCard(
               pose: pose,
               orange: widget.orange,
               isFavourite: _isFavourite(pose),
+              isSelected: isSelected,
               onToggleFavourite: () {},
             ),
           );
@@ -321,7 +323,6 @@ class _MyPosesTabState extends State<MyPosesTab> {
     );
   }
 
-  /// Minimal custom remove-confirmation card (replaces the old AlertDialog).
   Future<void> _confirmRemove(BuildContext context, PoseModel pose) async {
     final remove = await showDialog<bool>(
       context: context,
@@ -428,9 +429,7 @@ class _MyPosesTabState extends State<MyPosesTab> {
   }
 }
 
-/// Renders a pose thumbnail whether it's a bundled catalog asset
-/// (e.g. 'assets/poses/warrior.png') or a local file from the user's
-/// own upload (an absolute path starting with '/', saved after cutout).
+// ── Pose thumbnail (asset or local file) ──
 Widget _buildPoseThumbnail(String? path) {
   if (path == null || path.isEmpty) {
     return const Icon(
@@ -439,8 +438,7 @@ Widget _buildPoseThumbnail(String? path) {
       size: 32,
     );
   }
-  final isLocalFile = path.startsWith('/');
-  if (isLocalFile) {
+  if (path.startsWith('/')) {
     return Image.file(
       File(path),
       fit: BoxFit.contain,
@@ -459,40 +457,65 @@ Widget _buildPoseThumbnail(String? path) {
   );
 }
 
+// ── My Pose Card — no card box, cutout floats, purple glow on select ──
 class _MyPoseCard extends StatelessWidget {
   final PoseModel pose;
   final Color orange;
   final bool isFavourite;
+  final bool isSelected;
   final VoidCallback onToggleFavourite;
 
   const _MyPoseCard({
     required this.pose,
     required this.orange,
     required this.isFavourite,
+    required this.isSelected,
     required this.onToggleFavourite,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2A2A2A)),
-      ),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 8, top: 8),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Purple glow behind cutout when selected (same as All Poses tab)
+        if (isSelected)
+          ImageFiltered(
+            imageFilter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: ColorFiltered(
+              colorFilter: ColorFilter.mode(
+                orange.withOpacity(0.85),
+                BlendMode.srcIn,
+              ),
               child: _buildPoseThumbnail(pose.imagePath),
             ),
           ),
+
+        // Cutout image — no card/box behind it
+        _buildPoseThumbnail(pose.imagePath),
+
+        // Checkmark badge when selected
+        if (isSelected)
           Positioned(
-            top: 9,
-            right: 9,
+            top: 6,
+            right: 6,
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(color: orange, shape: BoxShape.circle),
+              child: const Icon(
+                Icons.check_rounded,
+                color: Colors.white,
+                size: 14,
+              ),
+            ),
+          ),
+
+        // Fav heart button (top right, below checkmark when selected)
+        if (!isSelected)
+          Positioned(
+            top: 6,
+            right: 6,
             child: GestureDetector(
               onTap: onToggleFavourite,
               child: Container(
@@ -512,15 +535,12 @@ class _MyPoseCard extends StatelessWidget {
               ),
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 }
 
-/// Compact "+ Add Pose" grid tile — transparent/dashed, sits first in the
-/// grid once at least one pose (saved or processing) exists. The big solid
-/// pill button in `_buildEmptyState` is only for the fully-empty state.
+// ── Add Pose tile (dashed border, first in grid) ──
 class _AddPoseTile extends StatelessWidget {
   final Color orange;
   final VoidCallback onTap;
@@ -556,9 +576,7 @@ class _AddPoseTile extends StatelessWidget {
   }
 }
 
-/// Shown for a photo that's been picked but hasn't finished the
-/// background-removal / cutout step yet. Dims the source photo and pulses
-/// "Processing…" until the parent moves it out of `processingPoses`.
+// ── Processing card ──
 class _ProcessingPoseCard extends StatefulWidget {
   final File imageFile;
   final Color orange;
@@ -643,18 +661,17 @@ class _ProcessingPoseCardState extends State<_ProcessingPoseCard>
   }
 }
 
-/// Wraps a child with custom-duration press-and-hold detection (default
-/// 2 seconds) instead of Flutter's built-in ~500ms long-press. Scales the
-/// child down slightly while held for visual feedback, fires a light
-/// haptic + [onHoldComplete] once the duration is reached.
+// ── Hold to remove + tap to select ──
 class _HoldToRemove extends StatefulWidget {
   final Widget child;
   final VoidCallback onHoldComplete;
+  final VoidCallback onTap;
   final Duration duration;
 
   const _HoldToRemove({
     required this.child,
     required this.onHoldComplete,
+    required this.onTap,
     this.duration = const Duration(seconds: 2),
   });
 
@@ -665,12 +682,19 @@ class _HoldToRemove extends StatefulWidget {
 class _HoldToRemoveState extends State<_HoldToRemove> {
   Timer? _timer;
   bool _pressed = false;
+  bool _holdFired = false;
 
   void _start() {
-    setState(() => _pressed = true);
+    setState(() {
+      _pressed = true;
+      _holdFired = false;
+    });
     _timer = Timer(widget.duration, () {
       if (!mounted) return;
-      setState(() => _pressed = false);
+      setState(() {
+        _pressed = false;
+        _holdFired = true;
+      });
       HapticFeedback.mediumImpact();
       widget.onHoldComplete();
     });
@@ -678,7 +702,22 @@ class _HoldToRemoveState extends State<_HoldToRemove> {
 
   void _cancel() {
     _timer?.cancel();
-    if (mounted) setState(() => _pressed = false);
+    if (mounted) {
+      if (!_holdFired) widget.onTap();
+      setState(() {
+        _pressed = false;
+        _holdFired = false;
+      });
+    }
+  }
+
+  void _cancelWithoutTap() {
+    _timer?.cancel();
+    if (mounted)
+      setState(() {
+        _pressed = false;
+        _holdFired = false;
+      });
   }
 
   @override
@@ -692,7 +731,7 @@ class _HoldToRemoveState extends State<_HoldToRemove> {
     return GestureDetector(
       onTapDown: (_) => _start(),
       onTapUp: (_) => _cancel(),
-      onTapCancel: _cancel,
+      onTapCancel: _cancelWithoutTap,
       child: AnimatedScale(
         scale: _pressed ? 0.94 : 1.0,
         duration: const Duration(milliseconds: 150),
@@ -702,6 +741,7 @@ class _HoldToRemoveState extends State<_HoldToRemove> {
   }
 }
 
+// ── Dashed border container ──
 class DottedBorderContainer extends StatelessWidget {
   final Color color;
   final Widget child;
@@ -732,18 +772,22 @@ class _DashedBorderPainter extends CustomPainter {
       ..color = color.withOpacity(0.2)
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
-    final rrect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      const Radius.circular(16),
-    );
-    final path = Path()..addRRect(rrect);
+    final path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(0, 0, size.width, size.height),
+          const Radius.circular(16),
+        ),
+      );
     const dashWidth = 5.0;
     const dashSpace = 4.0;
     for (final metric in path.computeMetrics()) {
       double distance = 0;
       while (distance < metric.length) {
-        final segment = metric.extractPath(distance, distance + dashWidth);
-        canvas.drawPath(segment, paint);
+        canvas.drawPath(
+          metric.extractPath(distance, distance + dashWidth),
+          paint,
+        );
         distance += dashWidth + dashSpace;
       }
     }

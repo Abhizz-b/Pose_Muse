@@ -2,10 +2,14 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+// ── Direct color constants (replaces AppColors) ──
+const _accent = Color(0xFF9C6FFF);
+const _surface = Color(0xFF1A1A1A);
+const _border = Color(0xFF2A2A2A);
+const _bg = Color(0xFF0D0D0D);
+const _textPrimary = Colors.white;
 
 /// Compact "+ Add Pose" tile — transparent fill, dashed purple outline.
-/// Used as the first cell of the grid once at least one pose exists.
-/// (The big solid pill button is only for the empty state.)
 class AddPoseTile extends StatelessWidget {
   final VoidCallback onTap;
   const AddPoseTile({required this.onTap, super.key});
@@ -16,7 +20,7 @@ class AddPoseTile extends StatelessWidget {
       onTap: onTap,
       child: CustomPaint(
         painter: _DashedBorderPainter(
-          color: AppColors.accent.withOpacity(0.6),
+          color: _accent.withValues(alpha: 0.6),
           radius: 16,
         ),
         child: Container(
@@ -25,10 +29,10 @@ class AddPoseTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
           ),
           alignment: Alignment.center,
-          child: Column(
+          child: const Column(
             mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(CupertinoIcons.add, size: 22, color: AppColors.accent),
+            children: [
+              Icon(CupertinoIcons.add, size: 22, color: _accent),
               SizedBox(height: 6),
               Text(
                 'Add Pose',
@@ -36,7 +40,7 @@ class AddPoseTile extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.accent,
+                  color: _accent,
                 ),
               ),
             ],
@@ -47,8 +51,7 @@ class AddPoseTile extends StatelessWidget {
   }
 }
 
-/// Shown right after a photo is picked, while the background-removal /
-/// cutout step is running. Dims the original photo and pulses "Processing…".
+/// Processing tile — dims original photo + pulses "Processing…"
 class PoseProcessingTile extends StatefulWidget {
   final File sourceImage;
   const PoseProcessingTile({required this.sourceImage, super.key});
@@ -80,9 +83,9 @@ class _PoseProcessingTileState extends State<PoseProcessingTile>
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceAlt,
+        color: _surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: _border),
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -92,7 +95,7 @@ class _PoseProcessingTileState extends State<PoseProcessingTile>
             opacity: 0.28,
             child: Image.file(widget.sourceImage, fit: BoxFit.cover),
           ),
-          Container(color: AppColors.background.withOpacity(0.35)),
+          Container(color: _bg.withValues(alpha: 0.35)),
           Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -102,7 +105,7 @@ class _PoseProcessingTileState extends State<PoseProcessingTile>
                   height: 22,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.4,
-                    color: AppColors.accent,
+                    color: _accent,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -113,7 +116,7 @@ class _PoseProcessingTileState extends State<PoseProcessingTile>
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: _textPrimary,
                     ),
                   ),
                 ),
@@ -126,8 +129,7 @@ class _PoseProcessingTileState extends State<PoseProcessingTile>
   }
 }
 
-/// A finished cutout — transparent-background PNG shown on the card surface,
-/// same visual treatment as the catalog poses, with a small delete button.
+/// Finished cutout tile — PNG on card surface with delete button.
 class PoseCutoutTile extends StatelessWidget {
   final File cutoutImage;
   final VoidCallback onDelete;
@@ -142,9 +144,9 @@ class PoseCutoutTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceAlt,
+        color: _surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: _border),
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -162,7 +164,7 @@ class PoseCutoutTile extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.45),
+                  color: Colors.black.withValues(alpha: 0.45),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -179,7 +181,7 @@ class PoseCutoutTile extends StatelessWidget {
   }
 }
 
-/// Hand-rolled dashed rounded-rect border (no extra package needed).
+/// Dashed rounded-rect border painter.
 class _DashedBorderPainter extends CustomPainter {
   final Color color;
   final double radius;
@@ -192,11 +194,13 @@ class _DashedBorderPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.4;
 
-    final rrect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      Radius.circular(radius),
-    );
-    final path = Path()..addRRect(rrect);
+    final path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(0, 0, size.width, size.height),
+          Radius.circular(radius),
+        ),
+      );
     canvas.drawPath(_dashed(path, dashLength: 6, gapLength: 5), paint);
   }
 
@@ -205,12 +209,12 @@ class _DashedBorderPainter extends CustomPainter {
     required double dashLength,
     required double gapLength,
   }) {
-    final Path dest = Path();
+    final dest = Path();
     for (final metric in source.computeMetrics()) {
       double distance = 0;
       bool draw = true;
       while (distance < metric.length) {
-        final double next = distance + (draw ? dashLength : gapLength);
+        final next = distance + (draw ? dashLength : gapLength);
         if (draw) {
           dest.addPath(
             metric.extractPath(distance, next.clamp(0, metric.length)),

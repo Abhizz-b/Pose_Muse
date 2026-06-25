@@ -35,10 +35,12 @@ class _CatalogScreenState extends State<CatalogScreen>
   bool _loadingPoses = true;
 
   final List<LocalPose> _selectedPoses = [];
+  final List<File> _processingPoses = [];
+  final List<PoseModel> _selectedMyPoses = [];
 
   // Photos picked from the gallery that are currently going through
   // background removal — shown as "Processing…" tiles inside My Poses.
-  final List<File> _processingPoses = [];
+ 
 
   static const Color _orange = Color(0xFF9C6FFF);
   static const Color _bg = Color(0xFF0D0D0D);
@@ -204,8 +206,10 @@ class _CatalogScreenState extends State<CatalogScreen>
       _selectedPoses.any((p) => p.id == pose.id);
 
   void _onTakePhotos() {
-    if (_selectedPoses.isEmpty) return;
-    Navigator.pop(context, _selectedPoses.map((p) => p.toModel()).toList());
+    if (_selectedPoses.isEmpty && _selectedMyPoses.isEmpty) return;
+    final fromCatalog = _selectedPoses.map((p) => p.toModel()).toList();
+    final fromMyPoses = List<PoseModel>.from(_selectedMyPoses);
+    Navigator.pop(context, [...fromCatalog, ...fromMyPoses]);
   }
 
   @override
@@ -245,6 +249,19 @@ class _CatalogScreenState extends State<CatalogScreen>
                     isPoseSelected: _isPoseSelected,
                   ),
                   MyPosesTab(
+                    onToggleMyPose: (pose) {
+                      setState(() {
+                        final idx = _selectedMyPoses.indexWhere(
+                          (p) => p.name == pose.name,
+                        );
+                        if (idx >= 0)
+                          _selectedMyPoses.removeAt(idx);
+                        else
+                          _selectedMyPoses.add(pose);
+                      });
+                    },
+                    isMyPoseSelected: (pose) =>
+                        _selectedMyPoses.any((p) => p.name == pose.name),
                     poses: _myPoses,
                     allLocalPoses: _allPoses,
                     loading: _loadingMy,
@@ -392,8 +409,9 @@ class _CatalogScreenState extends State<CatalogScreen>
   }
 
   Widget _buildBottomBar() {
-    final hasSelection = _selectedPoses.isNotEmpty;
-    final count = _selectedPoses.length;
+    final hasSelection =
+        _selectedPoses.isNotEmpty || _selectedMyPoses.isNotEmpty;
+    final count = _selectedPoses.length + _selectedMyPoses.length;
     final previewPoses = _selectedPoses.take(3).toList();
 
     return Container(
