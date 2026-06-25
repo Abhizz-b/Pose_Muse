@@ -40,7 +40,6 @@ class _CatalogScreenState extends State<CatalogScreen>
 
   // Photos picked from the gallery that are currently going through
   // background removal — shown as "Processing…" tiles inside My Poses.
- 
 
   static const Color _orange = Color(0xFF9C6FFF);
   static const Color _bg = Color(0xFF0D0D0D);
@@ -206,9 +205,13 @@ class _CatalogScreenState extends State<CatalogScreen>
       _selectedPoses.any((p) => p.id == pose.id);
 
   void _onTakePhotos() {
+    debugPrint(
+      'catalog: ${_selectedPoses.length}, myPoses: ${_selectedMyPoses.length}',
+    );
     if (_selectedPoses.isEmpty && _selectedMyPoses.isEmpty) return;
     final fromCatalog = _selectedPoses.map((p) => p.toModel()).toList();
     final fromMyPoses = List<PoseModel>.from(_selectedMyPoses);
+    debugPrint('popping with ${[...fromCatalog, ...fromMyPoses].length} poses');
     Navigator.pop(context, [...fromCatalog, ...fromMyPoses]);
   }
 

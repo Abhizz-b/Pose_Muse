@@ -13,6 +13,7 @@ import '../models/pose_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'settings_screen.dart';
+import 'dart:io';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -166,25 +167,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
 
     ScanResult scanResult;
-try {
-  scanResult = await DetectionService.analyze(_cameraController!);
-} catch (e) {
-  scanResult = ScanResult.noPerson;
-}
+    try {
+      scanResult = await DetectionService.analyze(_cameraController!);
+    } catch (e) {
+      scanResult = ScanResult.noPerson;
+    }
 
-if (!mounted) return;
-setState(() {
-  _isScanning = false;
-  _statusMessage = '';
-});
-HapticFeedback.lightImpact();
+    if (!mounted) return;
+    setState(() {
+      _isScanning = false;
+      _statusMessage = '';
+    });
+    HapticFeedback.lightImpact();
 
-if (scanResult == ScanResult.noPerson) {
-  setState(() => _noPersonDetected = true);
-  return;
-}
+    if (scanResult == ScanResult.noPerson) {
+      setState(() => _noPersonDetected = true);
+      return;
+    }
 
-_openCatalog(tabIndex: 0, scanResult: scanResult);
+    _openCatalog(tabIndex: 0, scanResult: scanResult);
   }
 
   void _showResults(DetectionResult result) {
@@ -229,24 +230,21 @@ _openCatalog(tabIndex: 0, scanResult: scanResult);
     }
   }
 
-  Future<void> _openCatalog({
-  int tabIndex = 1,
-  ScanResult? scanResult,
-}) async {
-  final selected = await Navigator.push<List<PoseModel>>(
-    context,
-    MaterialPageRoute(
-      builder: (_) => CatalogScreen(
-        initiallySelected: _shootPoses,
-        initialTabIndex: tabIndex,
-        scanResult: scanResult,
+  Future<void> _openCatalog({int tabIndex = 1, ScanResult? scanResult}) async {
+    final selected = await Navigator.push<List<PoseModel>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CatalogScreen(
+          initiallySelected: _shootPoses,
+          initialTabIndex: tabIndex,
+          scanResult: scanResult,
+        ),
       ),
-    ),
-  );
-  if (selected != null) {
-    setState(() => _shootPoses = selected);
+    );
+    if (selected != null) {
+      setState(() => _shootPoses = selected);
+    }
   }
-}
 
   void _openGallery() {
     Navigator.push(
@@ -1063,18 +1061,31 @@ class _PoseWheelCarouselState extends State<_PoseWheelCarousel> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(13),
                           child: widget.poses[index].imagePath != null
-                              ? Image.asset(
-                                  widget.poses[index].imagePath!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(
-                                    color: const Color(0xFF1A1A1A),
-                                    child: const Icon(
-                                      Icons.image,
-                                      color: Colors.white38,
-                                      size: 22,
-                                    ),
-                                  ),
-                                )
+                              ? (widget.poses[index].imagePath!.startsWith('/')
+                                    ? Image.file(
+                                        File(widget.poses[index].imagePath!),
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Container(
+                                          color: const Color(0xFF1A1A1A),
+                                          child: const Icon(
+                                            Icons.image,
+                                            color: Colors.white38,
+                                            size: 22,
+                                          ),
+                                        ),
+                                      )
+                                    : Image.asset(
+                                        widget.poses[index].imagePath!,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Container(
+                                          color: const Color(0xFF1A1A1A),
+                                          child: const Icon(
+                                            Icons.image,
+                                            color: Colors.white38,
+                                            size: 22,
+                                          ),
+                                        ),
+                                      ))
                               : Container(color: const Color(0xFF1A1A1A)),
                         ),
                       ),
