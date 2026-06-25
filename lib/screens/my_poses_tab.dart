@@ -554,24 +554,32 @@ class _AddPoseTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: DottedBorderContainer(
-        color: orange,
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.add_rounded, color: orange, size: 24),
-              const SizedBox(height: 6),
-              Text(
-                'Add Pose',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: orange,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+      behavior: HitTestBehavior
+          .opaque, // pura cell tap-able rahe, box chhota hone ke baad bhi
+      child: Center(
+        child: FractionallySizedBox(
+          widthFactor: 0.42, // box ki width grid cell ka 62%
+          heightFactor: 0.42, // box ki height grid cell ka 62%
+          child: DottedBorderContainer(
+            color: orange,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add_rounded, color: orange, size: 18),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Add Pose',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: orange,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
