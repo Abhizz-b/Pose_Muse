@@ -744,25 +744,6 @@ class _LocalPoseCard extends StatelessWidget {
               size: 32,
             ),
           ),
-
-          if (isSelected)
-            Positioned(
-              top: 4,
-              right: 4,
-              child: Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: orange,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.check_rounded,
-                  color: Colors.white,
-                  size: 14,
-                ),
-              ),
-            ),
         ],
       ),
     );
