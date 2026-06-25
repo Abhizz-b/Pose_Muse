@@ -523,23 +523,6 @@ class _MyPoseCard extends StatelessWidget {
         // Cutout image — no card/box behind it
         _buildPoseThumbnail(pose.imagePath),
 
-        // Checkmark badge when selected
-        if (isSelected)
-          Positioned(
-            top: 6,
-            right: 6,
-            child: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(color: orange, shape: BoxShape.circle),
-              child: const Icon(
-                Icons.check_rounded,
-                color: Colors.white,
-                size: 14,
-              ),
-            ),
-          ),
-
         // Fav heart button (top right, below checkmark when selected)
         if (!isSelected)
           Positioned(
