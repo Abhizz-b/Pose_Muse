@@ -49,7 +49,25 @@ class _MyPosesTabState extends State<MyPosesTab> {
   int _subTabIndex = 0;
   final List<String> _subTabs = ['All', 'Favourites', 'Albums'];
 
-  bool _isFavourite(PoseModel pose) => false;
+  // NAYA:
+  final Set<String> _favouriteIds = {}; // add this field near _subTabIndex
+
+  bool _isFavourite(PoseModel pose) {
+    final key = pose.imagePath;
+    return key != null && _favouriteIds.contains(key);
+  }
+
+  void _toggleFavourite(PoseModel pose) {
+    final key = pose.imagePath;
+    if (key == null) return;
+    setState(() {
+      if (_favouriteIds.contains(key)) {
+        _favouriteIds.remove(key);
+      } else {
+        _favouriteIds.add(key);
+      }
+    });
+  }
 
   List<PoseModel> get _filteredPoses {
     switch (_subTabIndex) {
@@ -203,45 +221,17 @@ class _MyPosesTabState extends State<MyPosesTab> {
           final pose = poses[processingIndex - processing.length];
           final isSelected = widget.isMyPoseSelected(pose);
 
-          return Stack(
-            children: [
-              _HoldToRemove(
-                onHoldComplete: () => _confirmRemove(context, pose),
-                onTap: () => widget.onToggleMyPose(pose),
-                child: _MyPoseCard(
-                  pose: pose,
-                  orange: widget.orange,
-                  isFavourite: _isFavourite(pose),
-                  isSelected: isSelected,
-                  onToggleFavourite: () {},
-                ),
-              ),
-              // Heart button UPAR — HoldToRemove ke bahar
-              if (!isSelected)
-                Positioned(
-                  top: 6,
-                  right: 6,
-                  child: GestureDetector(
-                    onTap: () {
-                      // TODO: favourite logic yahan
-                    },
-                    behavior: HitTestBehavior.opaque,
-                    child: Container(
-                      width: 30,
-                      height: 30,
-                      decoration: const BoxDecoration(
-                        color: Color(0x77000000),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.favorite_border_rounded,
-                        color: Colors.white,
-                        size: 14,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+          // NAYA:
+          return _HoldToRemove(
+            onHoldComplete: () => _confirmRemove(context, pose),
+            onTap: () => widget.onToggleMyPose(pose),
+            child: _MyPoseCard(
+              pose: pose,
+              orange: widget.orange,
+              isFavourite: _isFavourite(pose),
+              isSelected: isSelected,
+              onToggleFavourite: () => _toggleFavourite(pose),
+            ),
           );
         },
       ),
