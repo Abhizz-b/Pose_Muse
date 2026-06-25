@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/pose_model.dart';
 import '../models/local_pose.dart';
+import '../widgets/albums_tab.dart'; // correct path
 
 class MyPosesTab extends StatefulWidget {
   final List<PoseModel> poses;
@@ -96,7 +97,11 @@ class _MyPosesTabState extends State<MyPosesTab> {
         const SizedBox(height: 4),
         Expanded(
           child: _subTabIndex == 2
-              ? _buildAlbumsPlaceholder()
+              ? AlbumsTab( 
+                allPoses: widget.poses,
+                  accent: widget.orange, // jo bhi color pass ho raha hai
+                  textSecondary: widget.textSecondary,
+              )
               : (allTabEmpty && _subTabIndex == 0)
               ? _buildEmptyState()
               : _buildGrid(),

@@ -1,0 +1,1153 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:uuid/uuid.dart';
+import '../models/album_model.dart';
+import '../models/pose_model.dart';
+
+class AlbumsTab extends StatelessWidget {
+  final List<PoseModel> allPoses;
+  final Color accent;
+  final Color textSecondary;
+
+  const AlbumsTab({
+    required this.allPoses,
+    required this.accent,
+    required this.textSecondary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder(
+      valueListenable: Hive.box<Album>('albums').listenable(),
+      builder: (context, Box<Album> box, _) {
+        final albums = box.values.toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+        if (albums.isEmpty)
+          return _EmptyAlbums(
+            accent: accent,
+            onTap: () => _startCreate(context),
+          );
+
+        return GridView.builder(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 14,
+            childAspectRatio: 0.78,
+          ),
+          itemCount: albums.length + 1,
+          itemBuilder: (_, i) {
+            if (i == 0) {
+              return _NewAlbumTile(
+                accent: accent,
+                onTap: () => _startCreate(context),
+              );
+            }
+            final album = albums[i - 1];
+            return _AlbumCard(
+              album: album,
+              accent: accent,
+              textSecondary: textSecondary,
+              allPoses: allPoses,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AlbumDetailScreen(
+                    album: album,
+                    allPoses: allPoses,
+                    accent: accent,
+                    textSecondary: textSecondary,
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _startCreate(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _PoseSelectSheet(
+        allPoses: allPoses,
+        accent: accent,
+        textSecondary: textSecondary,
+      ),
+    );
+  }
+}
+
+// ── Empty state ──
+class _EmptyAlbums extends StatelessWidget {
+  final Color accent;
+  final VoidCallback onTap;
+  const _EmptyAlbums({required this.accent, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 68,
+            height: 68,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1A1A),
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFF2A2A2A)),
+            ),
+            child: Icon(Icons.folder_outlined, color: accent, size: 28),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'No albums yet',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Group your poses into albums',
+            style: TextStyle(color: accent.withOpacity(0.6), fontSize: 13),
+          ),
+          const SizedBox(height: 22),
+          GestureDetector(
+            onTap: onTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 11),
+              decoration: BoxDecoration(
+                color: accent,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add_rounded, color: Colors.white, size: 16),
+                  SizedBox(width: 6),
+                  Text(
+                    'Create album',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── New album dashed tile ──
+class _NewAlbumTile extends StatelessWidget {
+  final Color accent;
+  final VoidCallback onTap;
+  const _NewAlbumTile({required this.accent, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: CustomPaint(
+              painter: _DashedRectPainter(color: accent),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF111111),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add_rounded, color: accent, size: 22),
+                      const SizedBox(height: 4),
+                      Text(
+                        'New album',
+                        style: TextStyle(
+                          color: accent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Album card with 4-photo mosaic ──
+class _AlbumCard extends StatelessWidget {
+  final Album album;
+  final Color accent, textSecondary;
+  final List<PoseModel> allPoses;
+  final VoidCallback onTap;
+
+  const _AlbumCard({
+    required this.album,
+    required this.accent,
+    required this.textSecondary,
+    required this.allPoses,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final paths = album.poseImagePaths.take(4).toList();
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: paths.isEmpty
+                  ? Container(
+                      color: const Color(0xFF1A1A1A),
+                      child: Icon(
+                        Icons.folder_outlined,
+                        color: textSecondary,
+                        size: 28,
+                      ),
+                    )
+                  : GridView.count(
+                      crossAxisCount: 2,
+                      physics: const NeverScrollableScrollPhysics(),
+                      mainAxisSpacing: 2,
+                      crossAxisSpacing: 2,
+                      children: List.generate(4, (i) {
+                        if (i < paths.length) {
+                          return _thumb(paths[i]);
+                        }
+                        return Container(color: const Color(0xFF1F1F1F));
+                      }),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            album.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${album.poseImagePaths.length} poses',
+            style: TextStyle(color: textSecondary, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _thumb(String path) {
+    if (path.startsWith('/')) {
+      return Image.file(
+        File(path),
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(color: const Color(0xFF1F1F1F)),
+      );
+    }
+    return Image.asset(
+      path,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => Container(color: const Color(0xFF1F1F1F)),
+    );
+  }
+}
+
+// ── Step 1: Pose selection bottom sheet ──
+class _PoseSelectSheet extends StatefulWidget {
+  final List<PoseModel> allPoses;
+  final Color accent, textSecondary;
+  const _PoseSelectSheet({
+    required this.allPoses,
+    required this.accent,
+    required this.textSecondary,
+  });
+
+  @override
+  State<_PoseSelectSheet> createState() => _PoseSelectSheetState();
+}
+
+class _PoseSelectSheetState extends State<_PoseSelectSheet> {
+  final Set<String> _selected = {};
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.9,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (_, controller) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF141414),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Handle
+            const SizedBox(height: 10),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFF333333),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 14),
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Icon(
+                      Icons.close_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                  const Expanded(
+                    child: Text(
+                      'Select poses',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${_selected.length} selected',
+                    style: TextStyle(
+                      color: widget.accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Grid
+            Expanded(
+              child: GridView.builder(
+                controller: controller,
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 3 / 4,
+                ),
+                itemCount: widget.allPoses.length,
+                itemBuilder: (_, i) {
+                  final pose = widget.allPoses[i];
+                  final key = pose.imagePath ?? '';
+                  final sel = _selected.contains(key);
+                  return GestureDetector(
+                    onTap: () => setState(() {
+                      sel ? _selected.remove(key) : _selected.add(key);
+                    }),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: _poseThumb(pose.imagePath),
+                        ),
+                        if (sel)
+                          Positioned(
+                            top: 6,
+                            right: 6,
+                            child: Container(
+                              width: 22,
+                              height: 22,
+                              decoration: BoxDecoration(
+                                color: widget.accent,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.check_rounded,
+                                color: Colors.white,
+                                size: 13,
+                              ),
+                            ),
+                          ),
+                        if (!sel)
+                          Positioned(
+                            top: 6,
+                            right: 6,
+                            child: Container(
+                              width: 22,
+                              height: 22,
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Colors.white38,
+                                  width: 1.5,
+                                ),
+                                shape: BoxShape.circle,
+                                color: Colors.black38,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            // Bottom buttons
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: const Color(0xFF333333)),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        alignment: Alignment.center,
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: _selected.isEmpty
+                          ? null
+                          : () {
+                              Navigator.pop(context);
+                              _showNameSheet(context);
+                            },
+                      child: AnimatedOpacity(
+                        opacity: _selected.isEmpty ? 0.45 : 1.0,
+                        duration: const Duration(milliseconds: 150),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          decoration: BoxDecoration(
+                            color: widget.accent,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          alignment: Alignment.center,
+                          child: const Text(
+                            'Next',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showNameSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _NameAlbumSheet(
+        accent: widget.accent,
+        selectedPaths: _selected.toList(),
+      ),
+    );
+  }
+
+  Widget _poseThumb(String? path) {
+    if (path == null || path.isEmpty)
+      return Container(color: const Color(0xFF1A1A1A));
+    if (path.startsWith('/')) return Image.file(File(path), fit: BoxFit.cover);
+    return Image.asset(path, fit: BoxFit.cover);
+  }
+}
+
+// ── Step 2: Name album bottom sheet ──
+class _NameAlbumSheet extends StatefulWidget {
+  final Color accent;
+  final List<String> selectedPaths;
+  const _NameAlbumSheet({required this.accent, required this.selectedPaths});
+
+  @override
+  State<_NameAlbumSheet> createState() => _NameAlbumSheetState();
+}
+
+class _NameAlbumSheetState extends State<_NameAlbumSheet> {
+  final _controller = TextEditingController();
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final name = _controller.text.trim();
+    if (name.isEmpty) return;
+    setState(() => _saving = true);
+    final box = Hive.box<Album>('albums');
+    final album = Album(
+      id: const Uuid().v4(),
+      name: name,
+      poseImagePaths: widget.selectedPaths,
+      createdAt: DateTime.now(),
+    );
+    await box.put(album.id, album);
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        decoration: const BoxDecoration(
+          color: Color(0xFF161616),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF333333),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'Album name',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              cursorColor: widget.accent,
+              decoration: InputDecoration(
+                hintText: 'e.g. Summer shoot',
+                hintStyle: const TextStyle(
+                  color: Color(0xFF555555),
+                  fontSize: 14,
+                ),
+                filled: true,
+                fillColor: const Color(0xFF1F1F1F),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: widget.accent),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+                ),
+              ),
+              onSubmitted: (_) => _save(),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFF333333)),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _saving ? null : _save,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      decoration: BoxDecoration(
+                        color: widget.accent,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      alignment: Alignment.center,
+                      child: _saving
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              'Create',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Album detail screen ──
+class AlbumDetailScreen extends StatefulWidget {
+  final Album album;
+  final List<PoseModel> allPoses;
+  final Color accent, textSecondary;
+
+  const AlbumDetailScreen({
+    required this.album,
+    required this.allPoses,
+    required this.accent,
+    required this.textSecondary,
+  });
+
+  @override
+  State<AlbumDetailScreen> createState() => _AlbumDetailScreenState();
+}
+
+class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
+  bool _renaming = false;
+  late final TextEditingController _nameCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: widget.album.name);
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveRename() async {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) return;
+    widget.album.name = name;
+    await widget.album.save();
+    setState(() => _renaming = false);
+  }
+
+  Future<void> _deleteAlbum() async {
+    await widget.album.delete();
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0D0D0D),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // App bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _renaming
+                        ? Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _nameCtrl,
+                                  autofocus: true,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  cursorColor: widget.accent,
+                                  decoration: InputDecoration(
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 8,
+                                    ),
+                                    filled: true,
+                                    fillColor: const Color(0xFF1F1F1F),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide(
+                                        color: widget.accent,
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide(
+                                        color: widget.accent,
+                                      ),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide(
+                                        color: widget.accent,
+                                      ),
+                                    ),
+                                  ),
+                                  onSubmitted: (_) => _saveRename(),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: _saveRename,
+                                child: Icon(
+                                  Icons.check_rounded,
+                                  color: widget.accent,
+                                  size: 22,
+                                ),
+                              ),
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  widget.album.name,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              GestureDetector(
+                                onTap: () => setState(() => _renaming = true),
+                                child: Icon(
+                                  Icons.edit_outlined,
+                                  color: widget.textSecondary,
+                                  size: 15,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Delete option
+                  GestureDetector(
+                    onTap: () => _confirmDelete(context),
+                    child: Icon(
+                      Icons.more_horiz_rounded,
+                      color: widget.textSecondary,
+                      size: 22,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 44, bottom: 10),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '${widget.album.poseImagePaths.length} poses',
+                  style: TextStyle(color: widget.textSecondary, fontSize: 11),
+                ),
+              ),
+            ),
+            // Grid
+            Expanded(
+              child: GridView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 3 / 4,
+                ),
+                itemCount: widget.album.poseImagePaths.length + 1,
+                itemBuilder: (_, i) {
+                  // Last tile = "Add more"
+                  if (i == widget.album.poseImagePaths.length) {
+                    return GestureDetector(
+                      onTap: () => _addMore(context),
+                      child: CustomPaint(
+                        painter: _DashedRectPainter(color: widget.accent),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF111111),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.add_rounded,
+                                  color: widget.accent,
+                                  size: 20,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Add more',
+                                  style: TextStyle(
+                                    color: widget.accent,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  final path = widget.album.poseImagePaths[i];
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: _thumb(path),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _thumb(String path) {
+    if (path.startsWith('/'))
+      return Image.file(File(path), fit: BoxFit.contain);
+    return Image.asset(path, fit: BoxFit.contain);
+  }
+
+  void _addMore(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AddMoreSheet(
+        album: widget.album,
+        allPoses: widget.allPoses,
+        accent: widget.accent,
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context) async {
+    final del = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1C1C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Delete album?',
+          style: TextStyle(color: Colors.white, fontSize: 15),
+        ),
+        content: Text(
+          'This will remove the album but not your poses.',
+          style: TextStyle(color: widget.textSecondary, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white70),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Delete', style: TextStyle(color: widget.accent)),
+          ),
+        ],
+      ),
+    );
+    if (del == true) _deleteAlbum();
+  }
+}
+
+// ── Add more poses to existing album ──
+class _AddMoreSheet extends StatefulWidget {
+  final Album album;
+  final List<PoseModel> allPoses;
+  final Color accent;
+  const _AddMoreSheet({
+    required this.album,
+    required this.allPoses,
+    required this.accent,
+  });
+
+  @override
+  State<_AddMoreSheet> createState() => _AddMoreSheetState();
+}
+
+class _AddMoreSheetState extends State<_AddMoreSheet> {
+  late final Set<String> _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.album.poseImagePaths.toSet();
+  }
+
+  Future<void> _save() async {
+    widget.album.poseImagePaths = _selected.toList();
+    await widget.album.save();
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.9,
+      maxChildSize: 0.95,
+      builder: (_, controller) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF141414),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFF333333),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Icon(
+                      Icons.close_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                  const Expanded(
+                    child: Text(
+                      'Add poses',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _save,
+                    child: Text(
+                      'Done',
+                      style: TextStyle(
+                        color: widget.accent,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: GridView.builder(
+                controller: controller,
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 3 / 4,
+                ),
+                itemCount: widget.allPoses.length,
+                itemBuilder: (_, i) {
+                  final pose = widget.allPoses[i];
+                  final key = pose.imagePath ?? '';
+                  final sel = _selected.contains(key);
+                  return GestureDetector(
+                    onTap: () => setState(
+                      () => sel ? _selected.remove(key) : _selected.add(key),
+                    ),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: key.startsWith('/')
+                              ? Image.file(File(key), fit: BoxFit.cover)
+                              : Image.asset(key, fit: BoxFit.cover),
+                        ),
+                        Positioned(
+                          top: 6,
+                          right: 6,
+                          child: Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: sel ? widget.accent : Colors.black38,
+                              shape: BoxShape.circle,
+                              border: sel
+                                  ? null
+                                  : Border.all(
+                                      color: Colors.white38,
+                                      width: 1.5,
+                                    ),
+                            ),
+                            child: sel
+                                ? const Icon(
+                                    Icons.check_rounded,
+                                    color: Colors.white,
+                                    size: 13,
+                                  )
+                                : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Dashed border painter ──
+class _DashedRectPainter extends CustomPainter {
+  final Color color;
+  _DashedRectPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color.withOpacity(0.5)
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+    final path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(0, 0, size.width, size.height),
+          const Radius.circular(14),
+        ),
+      );
+    const dash = 5.0, gap = 4.0;
+    for (final m in path.computeMetrics()) {
+      double d = 0;
+      while (d < m.length) {
+        canvas.drawPath(m.extractPath(d, d + dash), paint);
+        d += dash + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_) => false;
+}
