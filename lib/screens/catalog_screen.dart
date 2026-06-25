@@ -7,7 +7,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/pose_model.dart';
 import 'my_poses_tab.dart';
 import '../models/local_pose.dart';
-
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import '../services/background_removal_service.dart'; // apna actual path daal do
 
 class CatalogScreen extends StatefulWidget {
   final ScanResult? scanResult;
@@ -33,6 +35,10 @@ class _CatalogScreenState extends State<CatalogScreen>
   bool _loadingPoses = true;
 
   final List<LocalPose> _selectedPoses = [];
+
+  // Photos picked from the gallery that are currently going through
+  // background removal — shown as "Processing…" tiles inside My Poses.
+  final List<File> _processingPoses = [];
 
   static const Color _orange = Color(0xFF9C6FFF);
   static const Color _bg = Color(0xFF0D0D0D);
@@ -149,6 +155,40 @@ class _CatalogScreenState extends State<CatalogScreen>
     }
   }
 
+  // ── Add Pose flow: pick from gallery → remove.bg cutout → persist ──
+  Future<void> _handleAddPose() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 90,
+    );
+    if (picked == null) return;
+    final file = File(picked.path);
+
+    setState(() => _processingPoses.add(file));
+
+    try {
+      final cutout = await BackgroundRemovalService.removeBackground(file);
+      final pose = PoseModel(
+        name: 'My pose ${DateTime.now().millisecondsSinceEpoch}',
+        imagePath: cutout.path,
+        description: '',
+        difficulty: 'easy',
+        cameraAngle: '',
+        emoji: '',
+      );
+      await _savePose(pose); // persists + reloads _myPoses + shows snackbar
+    } catch (e) {
+      debugPrint('❌ BG removal error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      }
+    } finally {
+      setState(() => _processingPoses.remove(file));
+    }
+  }
+
   void _togglePoseSelection(LocalPose pose) {
     setState(() {
       final idx = _selectedPoses.indexWhere((p) => p.id == pose.id);
@@ -216,9 +256,8 @@ class _CatalogScreenState extends State<CatalogScreen>
                     selectedPoses: _selectedPoses,
                     onToggleSelect: _togglePoseSelection,
                     isPoseSelected: _isPoseSelected,
-                    onAddPose: () {
-                      // TODO: image picker → bg removal → save cutout
-                    }
+                    onAddPose: _handleAddPose,
+                    processingPoses: _processingPoses,
                   ),
                 ],
               ),
@@ -633,7 +672,7 @@ class _AllPosesTabState extends State<_AllPosesTab> {
 }
 
 // ── My Poses Tab ──
-
+// (lives in my_poses_tab.dart, imported above)
 
 // ── Pose Card — Glow effect on select, NO SS badge, NO name, NO difficulty ──
 class _LocalPoseCard extends StatelessWidget {
