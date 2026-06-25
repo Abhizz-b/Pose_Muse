@@ -36,7 +36,7 @@ class AlbumsTab extends StatelessWidget {
             crossAxisCount: 2,
             crossAxisSpacing: 10,
             mainAxisSpacing: 14,
-            childAspectRatio: 0.78,
+            childAspectRatio: 0.95,
           ),
           itemCount: albums.length + 1,
           itemBuilder: (_, i) {
@@ -863,7 +863,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                 itemCount: widget.album.poseImagePaths.length + 1,
                 itemBuilder: (_, i) {
                   // Last tile = "Add more"
-                  if (i == widget.album.poseImagePaths.length) {
+                  if (i == 0) {
                     return GestureDetector(
                       onTap: () => _addMore(context),
                       child: CustomPaint(
@@ -898,7 +898,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                       ),
                     );
                   }
-                  final path = widget.album.poseImagePaths[i];
+                  final path = widget.album.poseImagePaths[i - 1];
                   return ClipRRect(
                     borderRadius: BorderRadius.circular(14),
                     child: _thumb(path),
@@ -914,8 +914,8 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
 
   Widget _thumb(String path) {
     if (path.startsWith('/'))
-      return Image.file(File(path), fit: BoxFit.contain);
-    return Image.asset(path, fit: BoxFit.contain);
+      return Image.file(File(path), fit: BoxFit.cover); // contain → cover
+    return Image.asset(path, fit: BoxFit.cover);
   }
 
   void _addMore(BuildContext context) {
@@ -1059,10 +1059,10 @@ class _AddMoreSheetState extends State<_AddMoreSheet> {
                 controller: controller,
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
+                  crossAxisCount: 3,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
-                  childAspectRatio: 3 / 4,
+                  childAspectRatio: 1,
                 ),
                 itemCount: widget.allPoses.length,
                 itemBuilder: (_, i) {
