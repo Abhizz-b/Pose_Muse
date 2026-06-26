@@ -266,7 +266,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: _textSecondary,
                     size: 20,
                   ),
-                  onTap: () {},
+                  onTap: () => _showChangePasswordDialog(context),
                   showDivider: true,
                 ),
                 _SettingsRow(
@@ -305,7 +305,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: _textSecondary,
                     size: 20,
                   ),
-                  onTap: () {},
+                  onTap: () => _showInfoDialog(
+                    context,
+                    'Privacy policy',
+                    'Your privacy policy text goes here — replace with your real policy, or call url_launcher to open a hosted page instead of this dialog.',
+                  ),
                   showDivider: true,
                 ),
                 _SettingsRow(
@@ -585,7 +589,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context); // dialog band karo
+              Navigator.pop(context); // close dialog first
               await AuthService.signOut();
               if (context.mounted) {
                 Navigator.pushAndRemoveUntil(
@@ -599,6 +603,224 @@ class _SettingsScreenState extends State<SettingsScreen> {
               'Log out',
               style: TextStyle(color: _red, fontWeight: FontWeight.w600),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Change Password Dialog ──
+  void _showChangePasswordDialog(BuildContext context) {
+    final currentCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    bool obscure = true;
+    bool loading = false;
+    String? errorText;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF1C1C1C),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: const Text(
+                'Change password',
+                style: TextStyle(
+                  color: _textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _passwordField(
+                      currentCtrl,
+                      'Current password',
+                      obscure,
+                      () => setDialogState(() => obscure = !obscure),
+                    ),
+                    const SizedBox(height: 12),
+                    _passwordField(
+                      newCtrl,
+                      'New password',
+                      obscure,
+                      () => setDialogState(() => obscure = !obscure),
+                    ),
+                    const SizedBox(height: 12),
+                    _passwordField(
+                      confirmCtrl,
+                      'Confirm new password',
+                      obscure,
+                      () => setDialogState(() => obscure = !obscure),
+                    ),
+                    if (errorText != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        errorText!,
+                        style: const TextStyle(color: _red, fontSize: 12),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: loading
+                      ? null
+                      : () => Navigator.pop(dialogContext),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: _textSecondary),
+                  ),
+                ),
+                TextButton(
+                  onPressed: loading
+                      ? null
+                      : () async {
+                          final current = currentCtrl.text.trim();
+                          final newPass = newCtrl.text.trim();
+                          final confirm = confirmCtrl.text.trim();
+
+                          if (current.isEmpty ||
+                              newPass.isEmpty ||
+                              confirm.isEmpty) {
+                            setDialogState(
+                              () => errorText = 'Fill in all fields.',
+                            );
+                            return;
+                          }
+                          if (newPass.length < 6) {
+                            setDialogState(
+                              () => errorText =
+                                  'New password must be at least 6 characters.',
+                            );
+                            return;
+                          }
+                          if (newPass != confirm) {
+                            setDialogState(
+                              () => errorText = 'Passwords do not match.',
+                            );
+                            return;
+                          }
+
+                          setDialogState(() {
+                            loading = true;
+                            errorText = null;
+                          });
+
+                          final error = await AuthService.changePassword(
+                            currentPassword: current,
+                            newPassword: newPass,
+                          );
+
+                          if (error != null) {
+                            setDialogState(() {
+                              loading = false;
+                              errorText = error;
+                            });
+                            return;
+                          }
+
+                          Navigator.pop(dialogContext);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Password updated.'),
+                                backgroundColor: Color(0xFF2E7D32),
+                              ),
+                            );
+                          }
+                        },
+                  child: loading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: _purple,
+                          ),
+                        )
+                      : const Text(
+                          'Update',
+                          style: TextStyle(
+                            color: _purple,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _passwordField(
+    TextEditingController controller,
+    String hint,
+    bool obscure,
+    VoidCallback toggleObscure,
+  ) {
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      style: const TextStyle(color: _textPrimary),
+      cursorColor: _purple,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: _textSecondary),
+        enabledBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: _border),
+        ),
+        focusedBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: _purple),
+        ),
+        suffixIcon: GestureDetector(
+          onTap: toggleObscure,
+          child: Icon(
+            obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+            color: _textSecondary,
+            size: 18,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Generic Info Dialog (Privacy policy / Terms etc.) ──
+  void _showInfoDialog(BuildContext context, String title, String content) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1C1C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          title,
+          style: const TextStyle(
+            color: _textPrimary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          content,
+          style: const TextStyle(
+            color: _textSecondary,
+            fontSize: 13,
+            height: 1.5,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close', style: TextStyle(color: _purple)),
           ),
         ],
       ),
