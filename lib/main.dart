@@ -1,15 +1,12 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'models/album_model.dart'; // yahi sahi path hai
-import 'screens/home_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Hive.initFlutter();
-  Hive.registerAdapter(AlbumAdapter());
-  await Hive.openBox<Album>('albums');
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -38,7 +35,7 @@ class PoseMuseApp extends StatelessWidget {
         ),
         scaffoldBackgroundColor: const Color(0xFF000000),
       ),
-      home: SplashScreen(),
+      home: const SplashScreen(),
     );
   }
 }

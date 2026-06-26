@@ -1,19 +1,9 @@
-import 'package:hive/hive.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-part 'album_model.g.dart';
-
-@HiveType(typeId: 10)
-class Album extends HiveObject {
-  @HiveField(0)
+class Album {
   String id;
-
-  @HiveField(1)
   String name;
-
-  @HiveField(2)
-  List<String> poseImagePaths; // PoseModel.imagePath list
-
-  @HiveField(3)
+  List<String> poseImagePaths;
   DateTime createdAt;
 
   Album({
@@ -22,4 +12,20 @@ class Album extends HiveObject {
     required this.poseImagePaths,
     required this.createdAt,
   });
+
+  factory Album.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Album(
+      id: doc.id,
+      name: data['name'] ?? '',
+      poseImagePaths: List<String>.from(data['poseImagePaths'] ?? []),
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
+    );
+  }
+
+  Map<String, dynamic> toFirestore() => {
+    'name': name,
+    'poseImagePaths': poseImagePaths,
+    'createdAt': Timestamp.fromDate(createdAt),
+  };
 }

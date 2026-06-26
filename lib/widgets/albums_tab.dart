@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import '../services/firestore_service.dart';
 import 'package:uuid/uuid.dart';
 import '../models/album_model.dart';
 import '../models/pose_model.dart';
@@ -18,17 +18,22 @@ class AlbumsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder(
-      valueListenable: Hive.box<Album>('albums').listenable(),
-      builder: (context, Box<Album> box, _) {
-        final albums = box.values.toList()
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return StreamBuilder<List<Album>>(
+      stream: FirestoreService.albumsStream(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFF9C6FFF)),
+          );
+        }
+        final albums = snap.data ?? [];
 
-        if (albums.isEmpty)
+        if (albums.isEmpty) {
           return _EmptyAlbums(
             accent: accent,
             onTap: () => _startCreate(context),
           );
+        }
 
         return GridView.builder(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -541,14 +546,13 @@ class _NameAlbumSheetState extends State<_NameAlbumSheet> {
     final name = _controller.text.trim();
     if (name.isEmpty) return;
     setState(() => _saving = true);
-    final box = Hive.box<Album>('albums');
     final album = Album(
       id: const Uuid().v4(),
       name: name,
       poseImagePaths: widget.selectedPaths,
       createdAt: DateTime.now(),
     );
-    await box.put(album.id, album);
+    await FirestoreService.saveAlbum(album);
     if (mounted) Navigator.pop(context);
   }
 
@@ -717,12 +721,12 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) return;
     widget.album.name = name;
-    await widget.album.save();
+    await FirestoreService.updateAlbum(widget.album);
     setState(() => _renaming = false);
   }
 
   Future<void> _deleteAlbum() async {
-    await widget.album.delete();
+    await FirestoreService.deleteAlbum(widget.album.id);
     if (mounted) Navigator.pop(context);
   }
 
@@ -880,7 +884,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                                 Icon(
                                   Icons.add_rounded,
                                   color: widget.accent,
-                                  size: 20,
+                                  size: 18,
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
@@ -990,7 +994,7 @@ class _AddMoreSheetState extends State<_AddMoreSheet> {
 
   Future<void> _save() async {
     widget.album.poseImagePaths = _selected.toList();
-    await widget.album.save();
+    await FirestoreService.updateAlbum(widget.album);
     if (mounted) Navigator.pop(context);
   }
 
