@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
 
@@ -14,6 +17,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _pushNotifications = true;
   bool _poseReminders = true;
   int _themeIndex = 2; // 0 = System, 1 = Light, 2 = Dark
+  bool _uploadingPhoto = false;
+
+  final ImagePicker _picker = ImagePicker();
 
   // ── Colors ──
   static const _bg = Color(0xFF0D0D0D);
@@ -23,6 +29,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
   static const _textPrimary = Color(0xFFF3F3F3);
   static const _textSecondary = Color(0xFF888888);
   static const _red = Color(0xFFE24B4A);
+
+  User? get _user => AuthService.currentUser;
+
+  String get _displayName {
+    final name = _user?.displayName?.trim();
+    if (name != null && name.isNotEmpty) return name;
+    return 'Add your name';
+  }
+
+  String get _initials {
+    final name = _user?.displayName?.trim();
+    if (name != null && name.isNotEmpty) {
+      final parts = name.split(RegExp(r'\s+'));
+      if (parts.length >= 2 && parts[0].isNotEmpty && parts[1].isNotEmpty) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+      }
+      return name[0].toUpperCase();
+    }
+    final email = _user?.email;
+    if (email != null && email.isNotEmpty) return email[0].toUpperCase();
+    return '?';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,65 +112,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               child: Row(
                 children: [
-                  // Avatar with dotted ring
-                  SizedBox(
-                    width: 72,
-                    height: 72,
-                    child: CustomPaint(
-                      painter: _DottedRingPainter(color: _purple),
-                      child: Center(
-                        child: Container(
-                          width: 52,
-                          height: 52,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Color(0xFF1E1A2E),
-                          ),
-                          child: const Center(
-                            child: Text(
-                              'AL',
-                              style: TextStyle(
-                                color: _purple,
-                                fontSize: 17,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  _buildAvatar(),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Avery Lin',
-                          style: TextStyle(
-                            color: _textPrimary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                _displayName,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: _displayName == 'Add your name'
+                                      ? _textSecondary
+                                      : _textPrimary,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  fontStyle: _displayName == 'Add your name'
+                                      ? FontStyle.italic
+                                      : FontStyle.normal,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            GestureDetector(
+                              onTap: () => _editName(context),
+                              behavior: HitTestBehavior.opaque,
+                              child: const Padding(
+                                padding: EdgeInsets.all(2),
+                                child: Icon(
+                                  Icons.edit_outlined,
+                                  color: _purple,
+                                  size: 15,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          'avery@posemuse.app',
-                          style: TextStyle(
+                          _user?.email ?? '',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
                             color: _textSecondary,
                             fontSize: 12,
                             fontFamily: 'monospace',
                           ),
                         ),
                       ],
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {},
-                    child: const Icon(
-                      Icons.edit_outlined,
-                      color: _purple,
-                      size: 20,
                     ),
                   ),
                 ],
@@ -209,8 +228,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
             const SizedBox(height: 24),
-
-          
 
             // ── Notifications ──
             _SectionLabel('Notifications'),
@@ -318,6 +335,229 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     );
+  }
+
+  // ── Avatar with photo / initials + camera badge ──
+  Widget _buildAvatar() {
+    final photoUrl = _user?.photoURL;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: const Color(0xFF1E1A2E),
+            border: Border.all(color: _purple.withOpacity(0.35), width: 1.5),
+          ),
+          child: photoUrl != null
+              ? ClipOval(
+                  child: Image.network(
+                    photoUrl,
+                    width: 64,
+                    height: 64,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Center(
+                      child: Text(
+                        _initials,
+                        style: const TextStyle(
+                          color: _purple,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              : Center(
+                  child: Text(
+                    _initials,
+                    style: const TextStyle(
+                      color: _purple,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+        ),
+        if (_uploadingPhoto)
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.black54,
+              ),
+              child: const Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        Positioned(
+          bottom: -2,
+          right: -2,
+          child: GestureDetector(
+            onTap: _uploadingPhoto ? null : () => _showPhotoOptions(context),
+            child: Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                color: _purple,
+                shape: BoxShape.circle,
+                border: Border.all(color: _surface, width: 2),
+              ),
+              child: const Icon(
+                Icons.camera_alt_rounded,
+                color: Colors.white,
+                size: 11,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _editName(BuildContext context) {
+    final controller = TextEditingController(text: _user?.displayName ?? '');
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1C1C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Edit name',
+          style: TextStyle(color: _textPrimary, fontWeight: FontWeight.w600),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(color: _textPrimary),
+          cursorColor: _purple,
+          decoration: InputDecoration(
+            hintText: 'Your name',
+            hintStyle: const TextStyle(color: _textSecondary),
+            enabledBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: _border),
+            ),
+            focusedBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: _purple),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: _textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              final name = controller.text.trim();
+              if (name.isEmpty) return;
+              Navigator.pop(context);
+              final error = await AuthService.updateDisplayName(name);
+              if (!mounted) return;
+              if (error != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(error), backgroundColor: _red),
+                );
+              } else {
+                setState(() {});
+              }
+            },
+            child: const Text(
+              'Save',
+              style: TextStyle(color: _purple, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPhotoOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: _border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined, color: _purple),
+              title: const Text(
+                'Take photo',
+                style: TextStyle(color: _textPrimary),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _pickPhoto(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined, color: _purple),
+              title: const Text(
+                'Choose from gallery',
+                style: TextStyle(color: _textPrimary),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _pickPhoto(ImageSource.gallery);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickPhoto(ImageSource source) async {
+    final picked = await _picker.pickImage(
+      source: source,
+      maxWidth: 800,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+
+    setState(() => _uploadingPhoto = true);
+    final url = await AuthService.uploadProfilePhoto(File(picked.path));
+    if (!mounted) return;
+    setState(() => _uploadingPhoto = false);
+
+    if (url == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Photo upload failed. Try again.'),
+          backgroundColor: _red,
+        ),
+      );
+    } else {
+      setState(() {});
+    }
   }
 
   void _confirmLogout(BuildContext context) {
@@ -547,36 +787,4 @@ class _PurpleSwitch extends StatelessWidget {
       ),
     );
   }
-}
-
-// ── Dotted Ring Painter for Avatar ──
-class _DottedRingPainter extends CustomPainter {
-  final Color color;
-  _DottedRingPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
-    final radius = size.width / 2;
-    const dashCount = 24;
-    final sweep = (2 * 3.14159265 / dashCount) * 0.5;
-
-    for (int i = 0; i < dashCount; i++) {
-      final start = i * (2 * 3.14159265 / dashCount);
-      canvas.drawArc(
-        Rect.fromCircle(center: Offset(radius, radius), radius: radius - 1),
-        start,
-        sweep,
-        false,
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter old) => false;
 }
