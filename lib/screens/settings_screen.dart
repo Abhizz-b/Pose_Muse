@@ -210,34 +210,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 24),
 
-            // ── Pose Library ──
-            _SectionLabel('Pose Library'),
-            _SettingsCard(
-              children: [
-                _SettingsRow(
-                  icon: Icons.bookmarks_outlined,
-                  label: 'Manage downloaded poses',
-                  trailing: const Icon(
-                    Icons.chevron_right_rounded,
-                    color: _textSecondary,
-                    size: 20,
-                  ),
-                  onTap: () {},
-                  showDivider: true,
-                ),
-                _SettingsRow(
-                  icon: Icons.delete_outline_rounded,
-                  label: 'Clear local cache',
-                  trailing: const Icon(
-                    Icons.chevron_right_rounded,
-                    color: _textSecondary,
-                    size: 20,
-                  ),
-                  onTap: () {},
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
+          
 
             // ── Notifications ──
             _SectionLabel('Notifications'),
