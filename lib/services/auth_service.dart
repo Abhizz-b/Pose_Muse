@@ -1,7 +1,8 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart'; // debugPrint ke liye
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'firestore_service.dart';
 
 class AuthService {
   static final _auth = FirebaseAuth.instance;
@@ -44,7 +45,7 @@ class AuthService {
     }
   }
 
-  /// NEW: current password verify + new password set
+  /// Reauthenticate + change password
   static Future<String?> changePassword({
     required String currentPassword,
     required String newPassword,
@@ -56,9 +57,9 @@ class AuthService {
         email: user.email!,
         password: currentPassword,
       );
-      await user.reauthenticateWithCredential(cred); // current password verify
+      await user.reauthenticateWithCredential(cred);
       await user.updatePassword(newPassword);
-      return null; // success
+      return null;
     } on FirebaseAuthException catch (e) {
       return _errorMessage(e.code);
     } catch (e) {
@@ -67,24 +68,30 @@ class AuthService {
     }
   }
 
+  /// Profile photo upload — Firebase Storage nahi hai,
+  /// isliye image ko base64 mein convert karke Firestore mein save karte hain.
+  /// Returns base64 string on success, null on failure.
   static Future<String?> uploadProfilePhoto(File file) async {
     final user = _auth.currentUser;
     if (user == null) return null;
     try {
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('profile_photos')
-          .child('${user.uid}.jpg');
-      await ref.putFile(file, SettableMetadata(contentType: 'image/jpeg'));
-      final url = await ref.getDownloadURL();
-      await user.updatePhotoURL(url);
-      await user.reload();
-      return url;
-    } on FirebaseException catch (e) {
-      debugPrint('Storage upload failed → code: ${e.code}, msg: ${e.message}');
-      return null;
+      // File bytes padhte hain
+      final bytes = await file.readAsBytes();
+
+      // 300 KB se bada hai to reject karo (Firestore doc limit ~1MB)
+      if (bytes.lengthInBytes > 300 * 1024) {
+        debugPrint('uploadProfilePhoto: file too large (${bytes.lengthInBytes} bytes)');
+        return null;
+      }
+
+      final base64Str = base64Encode(bytes);
+
+      // Firestore mein save karo
+      await FirestoreService.saveProfilePhoto(base64Str);
+
+      return base64Str; // caller ko base64 dete hain taaki UI update ho sake
     } catch (e) {
-      debugPrint('Storage upload failed → $e');
+      debugPrint('uploadProfilePhoto failed: $e');
       return null;
     }
   }
