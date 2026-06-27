@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import 'login_screen.dart';
 import 'privacy_policy_screen.dart';
+import 'about_posemuse_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Theme notifier — app-level theme change ke liye
@@ -55,8 +56,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Color get _bg => _isDark ? _bgDark : _bgLight;
   Color get _surface => _isDark ? _surfaceDark : _surfaceLight;
   Color get _border => _isDark ? _borderDark : _borderLight;
-  Color get _textPrimary => _isDark ? const Color(0xFFF3F3F3) : const Color(0xFF111111);
-  Color get _textSecondary => _isDark ? const Color(0xFF888888) : const Color(0xFF777777);
+  Color get _textPrimary =>
+      _isDark ? const Color(0xFFF3F3F3) : const Color(0xFF111111);
+  Color get _textSecondary =>
+      _isDark ? const Color(0xFF888888) : const Color(0xFF777777);
 
   String get _displayName {
     final name = _user?.displayName?.trim();
@@ -143,9 +146,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (_loadingPrefs) {
       return Scaffold(
         backgroundColor: _bg,
-        body: Center(
-          child: CircularProgressIndicator(color: _purple),
-        ),
+        body: Center(child: CircularProgressIndicator(color: _purple)),
       );
     }
 
@@ -381,7 +382,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   color: _textSecondary,
                   size: 20,
                 ),
-                onTap: () => _showAboutDialog(context),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AboutPoseMuseScreen(),
+                  ),
+                ),
                 showDivider: true,
               ),
               _settingsRow(
@@ -616,9 +622,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Text(
               label,
               style: TextStyle(
-                color: selected
-                    ? Colors.white
-                    : _textSecondary,
+                color: selected ? Colors.white : _textSecondary,
                 fontSize: 13,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
               ),
@@ -748,10 +752,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 8),
             ListTile(
               leading: const Icon(Icons.camera_alt_outlined, color: _purple),
-              title: Text(
-                'Take photo',
-                style: TextStyle(color: _textPrimary),
-              ),
+              title: Text('Take photo', style: TextStyle(color: _textPrimary)),
               onTap: () {
                 Navigator.pop(context);
                 _pickPhoto(ImageSource.camera);
@@ -789,9 +790,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _pickPhoto(ImageSource source) async {
     final picked = await _picker.pickImage(
       source: source,
-      maxWidth: 400,        // resize before encoding
+      maxWidth: 400, // resize before encoding
       maxHeight: 400,
-      imageQuality: 70,     // compress to stay under 300 KB
+      imageQuality: 70, // compress to stay under 300 KB
     );
     if (picked == null) return;
 
@@ -806,9 +807,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (result == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Photo upload failed. Try a smaller image.',
-          ),
+          content: Text('Photo upload failed. Try a smaller image.'),
           backgroundColor: _red,
         ),
       );
@@ -875,10 +874,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           title: Text(
             'Change password',
-            style: TextStyle(
-              color: _textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
+            style: TextStyle(color: _textPrimary, fontWeight: FontWeight.w600),
           ),
           content: SingleChildScrollView(
             child: Column(
@@ -918,8 +914,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           actions: [
             TextButton(
               onPressed: loading ? null : () => Navigator.pop(dialogContext),
-              child:
-                  Text('Cancel', style: TextStyle(color: _textSecondary)),
+              child: Text('Cancel', style: TextStyle(color: _textSecondary)),
             ),
             TextButton(
               onPressed: loading
@@ -932,8 +927,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       if (current.isEmpty ||
                           newPass.isEmpty ||
                           confirm.isEmpty) {
-                        setDialogState(
-                            () => errorText = 'Fill in all fields.');
+                        setDialogState(() => errorText = 'Fill in all fields.');
                         return;
                       }
                       if (newPass.length < 6) {
@@ -945,7 +939,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       }
                       if (newPass != confirm) {
                         setDialogState(
-                            () => errorText = 'Passwords do not match.');
+                          () => errorText = 'Passwords do not match.',
+                        );
                         return;
                       }
                       setDialogState(() {
@@ -1019,9 +1014,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         suffixIcon: GestureDetector(
           onTap: toggleObscure,
           child: Icon(
-            obscure
-                ? Icons.visibility_off_outlined
-                : Icons.visibility_outlined,
+            obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
             color: _textSecondary,
             size: 18,
           ),
@@ -1047,8 +1040,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 color: _purple.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.self_improvement_rounded,
-                  color: _purple, size: 20),
+              child: const Icon(
+                Icons.self_improvement_rounded,
+                color: _purple,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 10),
             Text(
@@ -1094,8 +1090,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             'PoseMuse is provided "as is" without warranty of any kind. '
             'We reserve the right to update these terms at any time.\n\n'
             'For questions, contact us at abhipsabose80@gmail.com.',
-            style:
-                TextStyle(color: _textSecondary, fontSize: 13, height: 1.6),
+            style: TextStyle(color: _textSecondary, fontSize: 13, height: 1.6),
           ),
         ),
         actions: [
@@ -1125,9 +1120,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Text(
               'Need help? Here are some quick tips:\n',
               style: TextStyle(
-                  color: _textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600),
+                color: _textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             Text(
               '• Tap any pose to preview it in full screen.\n'
@@ -1135,8 +1131,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               '• Use the camera tab for real-time pose guidance.\n'
               '• Enable notifications in Settings to get daily pose reminders.\n\n'
               'Still need help? Reach us at:\nabhipsabose80@gmail.com',
-              style:
-                  TextStyle(color: _textSecondary, fontSize: 13, height: 1.6),
+              style: TextStyle(
+                color: _textSecondary,
+                fontSize: 13,
+                height: 1.6,
+              ),
             ),
           ],
         ),

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/saved_photo.dart';
 import '../services/photo_storage_service.dart';
+import 'settings_screen.dart';
 
 class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key});
@@ -13,10 +14,15 @@ class GalleryScreen extends StatefulWidget {
 }
 
 class _GalleryScreenState extends State<GalleryScreen> {
-  static const Color _bg = Color(0xFF0D0D0D);
-  static const Color _surface = Color(0xFF1A1A1A);
-  static const Color _orange = Color(0xFF9C6FFF);
-  static const Color _divider = Color(0xFF2A2A2A);
+  static const Color _purple = Color(0xFF9C6FFF);
+
+  // Theme-aware
+  static const _bgDark = Color(0xFF0D0D0D);
+  static const _bgLight = Color(0xFFF5F5F7);
+  static const _surfaceDark = Color(0xFF1A1A1A);
+  static const _surfaceLight = Color(0xFFFFFFFF);
+  static const _borderDark = Color(0xFF2A2A2A);
+  static const _borderLight = Color(0xFFE0E0E0);
 
   static const int _crossAxisCount = 3;
   static const double _gridSpacing = 6;
@@ -26,22 +32,38 @@ class _GalleryScreenState extends State<GalleryScreen> {
   List<SavedPhoto> _photos = [];
   bool _loading = true;
   bool _showFavouritesOnly = false;
-
   bool _selectMode = false;
   final Set<String> _selectedIds = {};
 
-  // Drag-to-select tracking
   final GlobalKey _gridKey = GlobalKey();
-  int? _dragAnchorIndex; // index where the drag started
-  int? _lastDragIndex; // last index the drag touched
-  bool _dragModeIsSelecting =
-      true; // whether this drag is selecting or deselecting
+  int? _dragAnchorIndex;
+  int? _lastDragIndex;
+  bool _dragModeIsSelecting = true;
+
+  bool get _isDark => themeNotifier.value != ThemeMode.light;
+  Color get _bg => _isDark ? _bgDark : _bgLight;
+  Color get _surface => _isDark ? _surfaceDark : _surfaceLight;
+  Color get _border => _isDark ? _borderDark : _borderLight;
+  Color get _textPrimary =>
+      _isDark ? const Color(0xFFF3F3F3) : const Color(0xFF111111);
+  Color get _textSecondary =>
+      _isDark ? const Color(0xFF888888) : const Color(0xFF666666);
+  Color get _textWhite => _isDark ? Colors.white : const Color(0xFF111111);
 
   @override
   void initState() {
     super.initState();
+    themeNotifier.addListener(_onThemeChange);
     _loadPhotos();
   }
+
+  @override
+  void dispose() {
+    themeNotifier.removeListener(_onThemeChange);
+    super.dispose();
+  }
+
+  void _onThemeChange() => setState(() {});
 
   Future<void> _loadPhotos() async {
     setState(() => _loading = true);
@@ -62,15 +84,13 @@ class _GalleryScreenState extends State<GalleryScreen> {
           photos: _photos,
           initialIndex: index,
           onChanged: _loadPhotos,
+          isDark: _isDark,
         ),
       ),
     );
     _loadPhotos();
   }
 
-  // firstId is optional: pass it when entering via long-press or drag on a
-  // photo (that photo gets selected immediately). Leave null when entering
-  // via the "Select" button (nothing selected yet).
   void _enterSelectMode([String? firstId]) {
     setState(() {
       _selectMode = true;
@@ -93,64 +113,40 @@ class _GalleryScreenState extends State<GalleryScreen> {
       } else {
         _selectedIds.add(id);
       }
-      // NOTE: we no longer auto-exit select mode when selection hits zero.
-      // The user must tap "Cancel" to leave select mode, so the footer
-      // can show the disabled "Select items" state.
     });
   }
-
-  // ── Drag-to-select logic ──
 
   int? _indexAtGlobalPosition(Offset globalPosition) {
     final box = _gridKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null) return null;
     final local = box.globalToLocal(globalPosition);
-
-    // Account for grid padding
     final x = local.dx - _gridPadding;
     final y = local.dy - _gridPadding;
     if (x < 0 || y < 0) return null;
-
     final totalWidth = box.size.width - (_gridPadding * 2);
     final cellWidth =
         (totalWidth - (_gridSpacing * (_crossAxisCount - 1))) / _crossAxisCount;
     final cellHeight = cellWidth / _itemAspectRatio;
-
     final col = (x / (cellWidth + _gridSpacing)).floor();
     final row = (y / (cellHeight + _gridSpacing)).floor();
-
     if (col < 0 || col >= _crossAxisCount || row < 0) return null;
-
     final index = row * _crossAxisCount + col;
     if (index < 0 || index >= _photos.length) return null;
-
-    // Make sure the point actually landed inside the cell, not in the
-    // spacing gap between cells.
     final cellLocalX = x - col * (cellWidth + _gridSpacing);
     final cellLocalY = y - row * (cellHeight + _gridSpacing);
     if (cellLocalX > cellWidth || cellLocalY > cellHeight) return null;
-
     return index;
   }
 
   void _handleDragStart(DragStartDetails details) {
     final index = _indexAtGlobalPosition(details.globalPosition);
     if (index == null) return;
-
     final photo = _photos[index];
     final alreadySelected = _selectedIds.contains(photo.id);
-
-    // If we're not in select mode yet, this drag starts it.
-    if (!_selectMode) {
-      _enterSelectMode();
-    }
-
-    // Decide whether this whole drag gesture will select or deselect,
-    // based on the state of the very first photo touched.
+    if (!_selectMode) _enterSelectMode();
     _dragModeIsSelecting = !alreadySelected;
     _dragAnchorIndex = index;
     _lastDragIndex = index;
-
     setState(() {
       if (_dragModeIsSelecting) {
         _selectedIds.add(photo.id);
@@ -165,7 +161,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
     final index = _indexAtGlobalPosition(details.globalPosition);
     if (index == null || index == _lastDragIndex) return;
     _lastDragIndex = index;
-
     final photo = _photos[index];
     setState(() {
       if (_dragModeIsSelecting) {
@@ -188,9 +183,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
         .where((p) => _selectedIds.contains(p.id))
         .map((p) => XFile(p.path))
         .toList();
-    if (files.isNotEmpty) {
-      await Share.shareXFiles(files);
-    }
+    if (files.isNotEmpty) await Share.shareXFiles(files);
   }
 
   Future<void> _deleteSelected() async {
@@ -200,22 +193,16 @@ class _GalleryScreenState extends State<GalleryScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF1C1C1C),
-        title: const Text(
-          'Delete photos?',
-          style: TextStyle(color: Colors.white),
-        ),
+        backgroundColor: _surface,
+        title: Text('Delete photos?', style: TextStyle(color: _textPrimary)),
         content: Text(
           'This will permanently delete $count photo${count == 1 ? '' : 's'}.',
-          style: const TextStyle(color: Colors.white54),
+          style: TextStyle(color: _textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.white54),
-            ),
+            child: Text('Cancel', style: TextStyle(color: _textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -247,9 +234,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
             _buildFilterTabs(),
             Expanded(
               child: _loading
-                  ? const Center(
+                  ? Center(
                       child: CircularProgressIndicator(
-                        color: _orange,
+                        color: _purple,
                         strokeWidth: 2,
                       ),
                     )
@@ -277,20 +264,16 @@ class _GalleryScreenState extends State<GalleryScreen> {
               decoration: BoxDecoration(
                 color: _surface,
                 shape: BoxShape.circle,
-                border: Border.all(color: _divider),
+                border: Border.all(color: _border),
               ),
-              child: const Icon(
-                Icons.close_rounded,
-                color: Colors.white,
-                size: 16,
-              ),
+              child: Icon(Icons.close_rounded, color: _textPrimary, size: 16),
             ),
           ),
           const Spacer(),
-          const Text(
+          Text(
             'My Photos',
             style: TextStyle(
-              color: Colors.white,
+              color: _textPrimary,
               fontSize: 17,
               fontWeight: FontWeight.w700,
             ),
@@ -313,12 +296,12 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 decoration: BoxDecoration(
                   color: _surface,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: _divider),
+                  border: Border.all(color: _border),
                 ),
                 child: Text(
                   _selectMode ? 'Cancel' : 'Select',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: _textPrimary,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -360,14 +343,18 @@ class _GalleryScreenState extends State<GalleryScreen> {
         child: Container(
           height: 42,
           decoration: BoxDecoration(
-            color: selected ? Colors.white : Colors.transparent,
+            color: selected
+                ? (_isDark ? Colors.white : Colors.black)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(22),
           ),
           child: Center(
             child: Text(
               label,
               style: TextStyle(
-                color: selected ? Colors.black : Colors.white60,
+                color: selected
+                    ? (_isDark ? Colors.black : Colors.white)
+                    : _textSecondary,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -387,14 +374,14 @@ class _GalleryScreenState extends State<GalleryScreen> {
             _showFavouritesOnly
                 ? Icons.favorite_border_rounded
                 : Icons.photo_outlined,
-            color: Colors.white38,
+            color: _textSecondary,
             size: 44,
           ),
           const SizedBox(height: 14),
           Text(
             _showFavouritesOnly ? 'No favourites yet' : 'No photos yet',
-            style: const TextStyle(
-              color: Colors.white60,
+            style: TextStyle(
+              color: _textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -402,9 +389,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
           const SizedBox(height: 6),
           Text(
             _showFavouritesOnly
-                ? 'Bestie, double-tap your iconic shots to save them here <3 '
-                : 'Bestie, snap your first iconic shot ',
-            style: const TextStyle(color: Colors.white38, fontSize: 13),
+                ? 'Bestie, double-tap your iconic shots to save them here'
+                : 'Bestie, snap your first iconic shot',
+            style: TextStyle(color: _textSecondary, fontSize: 13),
           ),
         ],
       ),
@@ -413,9 +400,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
   Widget _buildGrid() {
     return GestureDetector(
-      // Using pan instead of long-press-drag so a deliberate drag works
-      // even when not already in select mode. Single taps still pass
-      // through to each item's own GestureDetector.
       onPanStart: _handleDragStart,
       onPanUpdate: _handleDragUpdate,
       onPanEnd: _handleDragEnd,
@@ -456,19 +440,19 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Container(
                       color: _surface,
-                      child: const Icon(
+                      child: Icon(
                         Icons.broken_image_outlined,
-                        color: Colors.white38,
+                        color: _textSecondary,
                       ),
                     ),
                   ),
                   if (!_selectMode && photo.isFavourite)
-                    const Positioned(
+                    Positioned(
                       top: 6,
                       right: 6,
                       child: Icon(
                         Icons.favorite_rounded,
-                        color: _orange,
+                        color: _purple,
                         size: 16,
                       ),
                     ),
@@ -490,7 +474,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                         height: 22,
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? _orange
+                              ? _purple
                               : Colors.black.withOpacity(0.4),
                           shape: BoxShape.circle,
                           border: Border.all(
@@ -525,7 +509,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       decoration: BoxDecoration(
         color: _bg,
-        border: Border(top: BorderSide(color: _divider)),
+        border: Border(top: BorderSide(color: _border)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -533,6 +517,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
           _footerIcon(
             icon: Icons.share_rounded,
             enabled: hasSelection,
+            color: _textPrimary,
             onTap: hasSelection ? _shareSelected : null,
           ),
           Text(
@@ -540,7 +525,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 ? '$count item${count == 1 ? '' : 's'} selected'
                 : 'Select items',
             style: TextStyle(
-              color: hasSelection ? Colors.white : Colors.white38,
+              color: hasSelection ? _textPrimary : _textSecondary,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -564,22 +549,27 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Icon(icon, color: enabled ? color : Colors.white24, size: 24),
+      child: Icon(
+        icon,
+        color: enabled ? color : _textSecondary.withOpacity(0.4),
+        size: 24,
+      ),
     );
   }
 }
 
-// ── Full-screen photo viewer with left-right swipe ──
-// ── Full-screen photo viewer with left-right swipe ──
+// Photo viewer — always dark (photos look best on black)
 class _PhotoViewerScreen extends StatefulWidget {
   final List<SavedPhoto> photos;
   final int initialIndex;
   final VoidCallback onChanged;
+  final bool isDark;
 
   const _PhotoViewerScreen({
     required this.photos,
     required this.initialIndex,
     required this.onChanged,
+    required this.isDark,
   });
 
   @override
@@ -588,7 +578,7 @@ class _PhotoViewerScreen extends StatefulWidget {
 
 class _PhotoViewerScreenState extends State<_PhotoViewerScreen>
     with SingleTickerProviderStateMixin {
-  static const Color _orange = Color(0xFF9C6FFF);
+  static const Color _purple = Color(0xFF9C6FFF);
   late PageController _pageController;
   late List<SavedPhoto> _photos;
   late int _currentIndex;
@@ -732,24 +722,22 @@ class _PhotoViewerScreenState extends State<_PhotoViewerScreen>
                 controller: _pageController,
                 itemCount: _photos.length,
                 onPageChanged: (i) => setState(() => _currentIndex = i),
-                itemBuilder: (_, i) {
-                  return GestureDetector(
-                    onDoubleTap: _toggleFavourite,
-                    child: InteractiveViewer(
-                      child: Image.file(
-                        File(_photos[i].path),
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => const Center(
-                          child: Icon(
-                            Icons.broken_image_outlined,
-                            color: Colors.white38,
-                            size: 48,
-                          ),
+                itemBuilder: (_, i) => GestureDetector(
+                  onDoubleTap: _toggleFavourite,
+                  child: InteractiveViewer(
+                    child: Image.file(
+                      File(_photos[i].path),
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                          color: Colors.white38,
+                          size: 48,
                         ),
                       ),
                     ),
-                  );
-                },
+                  ),
+                ),
               ),
             ),
             Padding(
@@ -761,7 +749,7 @@ class _PhotoViewerScreenState extends State<_PhotoViewerScreen>
                     icon: currentPhoto.isFavourite
                         ? Icons.favorite_rounded
                         : Icons.favorite_border_rounded,
-                    color: currentPhoto.isFavourite ? _orange : Colors.white,
+                    color: currentPhoto.isFavourite ? _purple : Colors.white,
                     onTap: _toggleFavourite,
                     scale: _heartScale,
                   ),

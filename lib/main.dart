@@ -43,7 +43,9 @@ class PoseMuseApp extends StatelessWidget {
               onSurface: Color(0xFFF3F3F3),
             ),
             scaffoldBackgroundColor: const Color(0xFF0D0D0D),
-            dialogBackgroundColor: const Color(0xFF1C1C1C),
+            dialogTheme: const DialogThemeData(
+              backgroundColor: Color(0xFF1C1C1C),
+            ),
             dividerColor: const Color(0xFF2A2A2A),
           ),
 

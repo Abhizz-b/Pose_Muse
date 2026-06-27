@@ -10,6 +10,7 @@ import '../models/local_pose.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../services/background_removal_service.dart'; // apna actual path daal do
+import 'settings_screen.dart';
 
 class CatalogScreen extends StatefulWidget {
   final ScanResult? scanResult;
@@ -41,12 +42,16 @@ class _CatalogScreenState extends State<CatalogScreen>
   // Photos picked from the gallery that are currently going through
   // background removal — shown as "Processing…" tiles inside My Poses.
 
+  bool get _isDark => themeNotifier.value != ThemeMode.light;
+  Color get _bg => _isDark ? const Color(0xFF0D0D0D) : const Color(0xFFF5F5F7);
+  Color get _surface =>
+      _isDark ? const Color(0xFF1A1A1A) : const Color(0xFFFFFFFF);
+  Color get _textPrimary => _isDark ? Colors.white : const Color(0xFF111111);
+  Color get _textSecondary =>
+      _isDark ? const Color(0xFF888888) : const Color(0xFF666666);
+  Color get _divider =>
+      _isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE0E0E0);
   static const Color _orange = Color(0xFF9C6FFF);
-  static const Color _bg = Color(0xFF0D0D0D);
-  static const Color _surface = Color(0xFF1A1A1A);
-  static const Color _textPrimary = Colors.white;
-  static const Color _textSecondary = Color(0xFF888888);
-  static const Color _divider = Color(0xFF2A2A2A);
 
   @override
   void initState() {
@@ -69,6 +74,9 @@ class _CatalogScreenState extends State<CatalogScreen>
           }
         });
       }
+    });
+    themeNotifier.addListener(() {
+      if (mounted) setState(() {});
     });
   }
 
@@ -304,11 +312,7 @@ class _CatalogScreenState extends State<CatalogScreen>
                 shape: BoxShape.circle,
                 border: Border.all(color: _divider),
               ),
-              child: const Icon(
-                Icons.close_rounded,
-                color: _textPrimary,
-                size: 16,
-              ),
+              child: Icon(Icons.close_rounded, color: _textPrimary, size: 16),
             ),
           ),
           const Spacer(),
@@ -316,7 +320,7 @@ class _CatalogScreenState extends State<CatalogScreen>
             _selectedPoses.isEmpty
                 ? 'Select Poses'
                 : 'Select Poses (${_selectedPoses.length})',
-            style: const TextStyle(
+            style: TextStyle(
               color: _textPrimary,
               fontSize: 17,
               fontWeight: FontWeight.w700,
@@ -337,7 +341,7 @@ class _CatalogScreenState extends State<CatalogScreen>
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: _divider),
                 ),
-                child: const Text(
+                child: Text(
                   'Clear all',
                   style: TextStyle(
                     color: _textPrimary,
