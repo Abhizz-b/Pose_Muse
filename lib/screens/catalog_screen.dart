@@ -51,6 +51,10 @@ class _CatalogScreenState extends State<CatalogScreen>
       _isDark ? const Color(0xFF888888) : const Color(0xFF666666);
   Color get _divider =>
       _isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE0E0E0);
+  // ✅ NEW — theme-aware colors for the disabled "Take photos" bottom bar
+  Color get _disabledBg =>
+      _isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE0E0E0);
+  Color get _disabledText => _isDark ? Colors.white38 : const Color(0xFF9A9A9A);
   static const Color _orange = Color(0xFF9C6FFF);
 
   @override
@@ -437,8 +441,8 @@ class _CatalogScreenState extends State<CatalogScreen>
               style: ElevatedButton.styleFrom(
                 backgroundColor: hasSelection
                     ? _orange
-                    : const Color(0xFF2A2A2A),
-                disabledBackgroundColor: const Color(0xFF2A2A2A),
+                    : _disabledBg, // ✅ theme-aware
+                disabledBackgroundColor: _disabledBg, // ✅ theme-aware
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(28),
                 ),
@@ -449,14 +453,18 @@ class _CatalogScreenState extends State<CatalogScreen>
                 children: [
                   Icon(
                     Icons.camera_alt_rounded,
-                    color: hasSelection ? Colors.white : Colors.white38,
+                    color: hasSelection
+                        ? Colors.white
+                        : _disabledText, // ✅ theme-aware
                     size: 18,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     hasSelection ? 'Take Photos ($count)' : 'Take photos',
                     style: TextStyle(
-                      color: hasSelection ? Colors.white : Colors.white38,
+                      color: hasSelection
+                          ? Colors.white
+                          : _disabledText, // ✅ theme-aware
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -468,7 +476,10 @@ class _CatalogScreenState extends State<CatalogScreen>
           const SizedBox(height: 6),
           Text(
             hasSelection ? 'Tap a pose to deselect' : 'Tap to select',
-            style: const TextStyle(color: Colors.white38, fontSize: 12),
+            style: TextStyle(
+              color: _disabledText,
+              fontSize: 12,
+            ), // ✅ theme-aware (const removed)
           ),
         ],
       ),

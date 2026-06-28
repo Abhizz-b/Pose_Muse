@@ -97,11 +97,11 @@ class _MyPosesTabState extends State<MyPosesTab> {
         const SizedBox(height: 4),
         Expanded(
           child: _subTabIndex == 2
-              ? AlbumsTab( 
-                allPoses: widget.poses,
+              ? AlbumsTab(
+                  allPoses: widget.poses,
                   accent: widget.orange, // jo bhi color pass ho raha hai
                   textSecondary: widget.textSecondary,
-              )
+                )
               : (allTabEmpty && _subTabIndex == 0)
               ? _buildEmptyState()
               : _buildGrid(),
@@ -116,7 +116,7 @@ class _MyPosesTabState extends State<MyPosesTab> {
       child: Container(
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1A1A),
+          color: widget.surface, // ✅ theme-aware ab
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -136,7 +136,9 @@ class _MyPosesTabState extends State<MyPosesTab> {
                   child: Text(
                     _subTabs[i],
                     style: TextStyle(
-                      color: selected ? Colors.white : const Color(0xFF555555),
+                      color: selected
+                          ? Colors.white
+                          : widget.textSecondary, // ✅ theme-aware
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),
@@ -212,7 +214,11 @@ class _MyPosesTabState extends State<MyPosesTab> {
         itemCount: totalItems,
         itemBuilder: (_, i) {
           if (showAddTile && i == 0) {
-            return _AddPoseTile(orange: widget.orange, onTap: widget.onAddPose);
+            return _AddPoseTile(
+              orange: widget.orange,
+              surface: widget.surface, // ✅ ye line add karo
+              onTap: widget.onAddPose,
+            );
           }
 
           final processingIndex = i - addOffset;
@@ -551,22 +557,27 @@ class _MyPoseCard extends StatelessWidget {
 // ── Add Pose tile (dashed border, first in grid) ──
 class _AddPoseTile extends StatelessWidget {
   final Color orange;
+  final Color surface; // ✅ naya param
   final VoidCallback onTap;
 
-  const _AddPoseTile({required this.orange, required this.onTap});
+  const _AddPoseTile({
+    required this.orange,
+    required this.surface,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      behavior: HitTestBehavior
-          .opaque, // pura cell tap-able rahe, box chhota hone ke baad bhi
+      behavior: HitTestBehavior.opaque,
       child: Center(
         child: FractionallySizedBox(
-          widthFactor: 0.42, // box ki width grid cell ka 62%
-          heightFactor: 0.42, // box ki height grid cell ka 62%
+          widthFactor: 0.42,
+          heightFactor: 0.42,
           child: DottedBorderContainer(
             color: orange,
+            surface: surface, // ✅ pass through
             child: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -760,8 +771,13 @@ class _HoldToRemoveState extends State<_HoldToRemove> {
 // ── Dashed border container ──
 class DottedBorderContainer extends StatelessWidget {
   final Color color;
+  final Color surface; // ✅ naya param
   final Widget child;
-  const DottedBorderContainer({required this.color, required this.child});
+  const DottedBorderContainer({
+    required this.color,
+    required this.surface,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -769,7 +785,7 @@ class DottedBorderContainer extends StatelessWidget {
       painter: _DashedBorderPainter(color: color),
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF111111),
+          color: surface, // ✅ theme-aware
           borderRadius: BorderRadius.circular(16),
         ),
         child: child,
