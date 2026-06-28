@@ -558,7 +558,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 }
 
-// Photo viewer — always dark (photos look best on black)
+// Photo viewer — now theme-aware (was hardcoded dark before)
 class _PhotoViewerScreen extends StatefulWidget {
   final List<SavedPhoto> photos;
   final int initialIndex;
@@ -584,6 +584,19 @@ class _PhotoViewerScreenState extends State<_PhotoViewerScreen>
   late int _currentIndex;
   late AnimationController _heartBounceController;
   late Animation<double> _heartScale;
+
+  // Theme-aware colors (driven by widget.isDark, passed in from GalleryScreen)
+  bool get _isDark => widget.isDark;
+  Color get _bg => _isDark ? Colors.black : const Color(0xFFF5F5F7);
+  Color get _surface => _isDark ? const Color(0xFF1C1C1C) : Colors.white;
+  Color get _textPrimary => _isDark ? Colors.white : const Color(0xFF111111);
+  Color get _textSecondary =>
+      _isDark ? Colors.white54 : const Color(0xFF666666);
+  Color get _iconColor => _isDark ? Colors.white : const Color(0xFF111111);
+  Color get _circleBg =>
+      _isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.06);
+  Color get _actionBtnBg =>
+      _isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06);
 
   @override
   void initState() {
@@ -640,22 +653,16 @@ class _PhotoViewerScreenState extends State<_PhotoViewerScreen>
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF1C1C1C),
-        title: const Text(
-          'Delete photo?',
-          style: TextStyle(color: Colors.white),
-        ),
-        content: const Text(
+        backgroundColor: _surface,
+        title: Text('Delete photo?', style: TextStyle(color: _textPrimary)),
+        content: Text(
           'This photo will be permanently deleted.',
-          style: TextStyle(color: Colors.white54),
+          style: TextStyle(color: _textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.white54),
-            ),
+            child: Text('Cancel', style: TextStyle(color: _textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -686,11 +693,11 @@ class _PhotoViewerScreenState extends State<_PhotoViewerScreen>
   @override
   Widget build(BuildContext context) {
     if (_photos.isEmpty) {
-      return const Scaffold(backgroundColor: Colors.black, body: SizedBox());
+      return Scaffold(backgroundColor: _bg, body: const SizedBox());
     }
     final currentPhoto = _photos[_currentIndex];
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: _bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -704,12 +711,12 @@ class _PhotoViewerScreenState extends State<_PhotoViewerScreen>
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: _circleBg,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.close_rounded,
-                        color: Colors.white,
+                        color: _iconColor,
                         size: 16,
                       ),
                     ),
@@ -728,10 +735,10 @@ class _PhotoViewerScreenState extends State<_PhotoViewerScreen>
                     child: Image.file(
                       File(_photos[i].path),
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Center(
+                      errorBuilder: (_, __, ___) => Center(
                         child: Icon(
                           Icons.broken_image_outlined,
-                          color: Colors.white38,
+                          color: _textSecondary,
                           size: 48,
                         ),
                       ),
@@ -749,18 +756,18 @@ class _PhotoViewerScreenState extends State<_PhotoViewerScreen>
                     icon: currentPhoto.isFavourite
                         ? Icons.favorite_rounded
                         : Icons.favorite_border_rounded,
-                    color: currentPhoto.isFavourite ? _purple : Colors.white,
+                    color: currentPhoto.isFavourite ? _purple : _iconColor,
                     onTap: _toggleFavourite,
                     scale: _heartScale,
                   ),
                   _actionButton(
                     icon: Icons.share_rounded,
-                    color: Colors.white,
+                    color: _iconColor,
                     onTap: _sharePhoto,
                   ),
                   _actionButton(
                     icon: Icons.delete_outline_rounded,
-                    color: Colors.white,
+                    color: _iconColor,
                     onTap: _deletePhoto,
                   ),
                 ],
@@ -784,10 +791,7 @@ class _PhotoViewerScreenState extends State<_PhotoViewerScreen>
       child: Container(
         width: 52,
         height: 52,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.08),
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: _actionBtnBg, shape: BoxShape.circle),
         child: scale != null
             ? ScaleTransition(scale: scale, child: iconWidget)
             : iconWidget,
