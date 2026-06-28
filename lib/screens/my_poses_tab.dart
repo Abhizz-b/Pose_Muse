@@ -489,7 +489,6 @@ class _MyPoseCard extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Purple glow behind cutout when selected (same as All Poses tab)
         if (isSelected)
           ImageFiltered(
             imageFilter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
@@ -502,26 +501,24 @@ class _MyPoseCard extends StatelessWidget {
             ),
           ),
 
-        // Cutout image — no card/box behind it
         _buildPoseThumbnail(pose.imagePath),
 
-        // Fav heart button (top right)
-        if (!isSelected)
-          Positioned(
-            top: 6,
-            right: 6,
-            child: GestureDetector(
-              onTap: onToggleFavourite,
-              behavior: HitTestBehavior.opaque,
-              child: Icon(
-                isFavourite
-                    ? Icons.favorite_rounded
-                    : Icons.favorite_border_rounded,
-                color: isFavourite ? orange : orange.withOpacity(0.5),
-                size: 20,
-              ),
+        // ← sirf yeh wala block badla hai, if (!isSelected) hata diya
+        Positioned(
+          top: 6,
+          right: 6,
+          child: GestureDetector(
+            onTap: onToggleFavourite,
+            behavior: HitTestBehavior.opaque,
+            child: Icon(
+              isFavourite
+                  ? Icons.favorite_rounded
+                  : Icons.favorite_border_rounded,
+              color: isFavourite ? orange : orange.withOpacity(0.5),
+              size: 20,
             ),
           ),
+        ),
       ],
     );
   }
