@@ -49,13 +49,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: Colors.black,
-      ),
-    );
 
     _scanLineController = AnimationController(
       vsync: this,
@@ -254,12 +247,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _capturePhoto() async {
-    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+    if (_cameraController == null || !_cameraController!.value.isInitialized)
       return;
-    }
     HapticFeedback.mediumImpact();
 
-    // Blink/flash effect — screen goes black briefly then fades back
     setState(() => _showFlash = true);
     Future.delayed(const Duration(milliseconds: 80), () {
       if (mounted) setState(() => _showFlash = false);
@@ -289,217 +280,308 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final topPad = MediaQuery.of(context).padding.top;
-    final bottomPad = MediaQuery.of(context).padding.bottom;
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, themeMode, _) {
+        // system theme ke liye device brightness check
+        final brightness = themeMode == ThemeMode.system
+            ? MediaQuery.of(context).platformBrightness
+            : (themeMode == ThemeMode.dark
+                  ? Brightness.dark
+                  : Brightness.light);
+        final isDark = brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      extendBodyBehindAppBar: true,
-      body: Stack(
-        children: [
-          // FULL SCREEN CAMERA
-          if (_isInitialized && _cameraController != null)
-            Positioned.fill(
-              child: FittedBox(
-                fit: BoxFit.cover,
-                child: SizedBox(
-                  width: _cameraController!.value.previewSize!.height,
-                  height: _cameraController!.value.previewSize!.width,
-                  child: CameraPreview(_cameraController!),
-                ),
-              ),
-            )
-          else
-            Positioned.fill(
-              child: Container(
-                color: Colors.black,
-                child: const Center(
-                  child: CircularProgressIndicator(
-                    color: _purple,
-                    strokeWidth: 2,
-                  ),
-                ),
-              ),
-            ),
+        // theme-aware colors
+        final barBg = isDark ? Colors.black : const Color(0xFFF2F0F7);
+        final iconBg = isDark
+            ? Colors.black.withOpacity(0.5)
+            : const Color(0x12000000);
+        final iconBorder = isDark
+            ? Colors.white.withOpacity(0.2)
+            : const Color(0x26000000);
+        final iconColor = isDark ? Colors.white : const Color(0xFF2D2D2D);
+        final hintColor = isDark ? Colors.white54 : const Color(0xFF9B96B0);
+        final pillBg = isDark
+            ? Colors.white.withOpacity(0.08)
+            : const Color(0x0F000000);
+        final pillTextColor = isDark ? Colors.white : const Color(0xFF1A1A1A);
+        final scanIconColor = isDark
+            ? const Color(0xFFE8A020)
+            : const Color(0xFFC47A00);
+        final sideBtnBg = isDark
+            ? Colors.black.withOpacity(0.5)
+            : const Color(0x12000000);
+        final sideBtnBorder = isDark
+            ? Colors.white.withOpacity(0.5)
+            : const Color(0x33000000);
 
-          // SCAN GRID OVERLAY
-          if (_isScanning)
-            Positioned.fill(
-              child: AnimatedBuilder(
-                animation: _scanLineAnim,
-                builder: (_, __) => CustomPaint(
-                  painter: _GridScanPainter(
-                    progress: _scanLineAnim.value,
-                    color: _purple,
-                  ),
-                ),
-              ),
-            ),
-
-          // ORANGE CORNER BRACKETS
-          Positioned.fill(
-            child: CustomPaint(painter: _CornerPainter(color: _orange)),
+        // status bar brightness
+        SystemChrome.setSystemUIOverlayStyle(
+          SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: isDark
+                ? Brightness.light
+                : Brightness.dark,
+            systemNavigationBarColor: barBg,
+            systemNavigationBarIconBrightness: isDark
+                ? Brightness.light
+                : Brightness.dark,
           ),
-          // SHUTTER FLASH/BLINK EFFECT
-          Positioned.fill(
-            child: AnimatedOpacity(
-              opacity: _showFlash ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 80),
-              child: Container(color: Colors.black),
-            ),
-          ),
+        );
 
-          // TOP BAR
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              decoration: const BoxDecoration(color: Colors.black),
-              padding: EdgeInsets.only(
-                top: topPad + 6,
-                left: 14,
-                right: 14,
-                bottom: 16,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _CircleTopBtn(
-                    icon: Icons.settings_outlined,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+        final topPad = MediaQuery.of(context).padding.top;
+        final bottomPad = MediaQuery.of(context).padding.bottom;
+
+        return Scaffold(
+          backgroundColor: Colors.black,
+          extendBodyBehindAppBar: true,
+          body: Stack(
+            children: [
+              // FULL SCREEN CAMERA
+              if (_isInitialized && _cameraController != null)
+                Positioned.fill(
+                  child: FittedBox(
+                    fit: BoxFit.cover,
+                    child: SizedBox(
+                      width: _cameraController!.value.previewSize!.height,
+                      height: _cameraController!.value.previewSize!.width,
+                      child: CameraPreview(_cameraController!),
                     ),
                   ),
-                  Row(
-                    children: [
-                      _CircleTopBtn(
-                        icon: Icons.timer_outlined,
-                        label: _timerSeconds == 0 ? null : '${_timerSeconds}s',
-                        active: _timerSeconds > 0,
-                        activeColor: _orange,
-                        onTap: _cycleTimer,
+                )
+              else
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black,
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        color: _purple,
+                        strokeWidth: 2,
                       ),
-                      const SizedBox(width: 8),
-                      _CircleTopBtn(
-                        icon: _flashOn
-                            ? Icons.flash_on_rounded
-                            : Icons.flash_off_rounded,
-                        active: _flashOn,
-                        activeColor: _orange,
-                        onTap: _toggleFlash,
-                      ),
-                      const SizedBox(width: 8),
-                      _ZoomBtn(label: _zoomLabel, onTap: _cycleZoom),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // SCANNING STATUS
-          if (_isScanning && _statusMessage.isNotEmpty)
-            Positioned(
-              bottom: bottomPad + 100,
-              left: 0,
-              right: 0,
-              child: FadeTransition(
-                opacity: _statusFade,
-                child: Center(
-                  child: Text(
-                    _statusMessage.toUpperCase(),
-                    style: const TextStyle(
-                      color: _orange,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 2.0,
-                      fontFamily: 'monospace',
                     ),
                   ),
                 ),
-              ),
-            ),
 
-          // NO PERSON DETECTED
-          if (_noPersonDetected && !_isScanning)
-            Positioned(
-              bottom: bottomPad + 110,
-              left: 0,
-              right: 0,
-              child: Center(
+              // SCAN GRID OVERLAY
+              if (_isScanning)
+                Positioned.fill(
+                  child: AnimatedBuilder(
+                    animation: _scanLineAnim,
+                    builder: (_, __) => CustomPaint(
+                      painter: _GridScanPainter(
+                        progress: _scanLineAnim.value,
+                        color: _purple,
+                      ),
+                    ),
+                  ),
+                ),
+
+              // CORNER BRACKETS
+              Positioned.fill(
+                child: CustomPaint(painter: _CornerPainter(color: _orange)),
+              ),
+
+              // SHUTTER FLASH
+              Positioned.fill(
+                child: AnimatedOpacity(
+                  opacity: _showFlash ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 80),
+                  child: Container(color: Colors.black),
+                ),
+              ),
+
+              // TOP BAR
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+                  color: barBg,
+                  padding: EdgeInsets.only(
+                    top: topPad + 6,
+                    left: 14,
+                    right: 14,
+                    bottom: 16,
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.75),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: Colors.red.withOpacity(0.4),
-                      width: 1,
-                    ),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Icon(
-                        Icons.warning_amber_rounded,
-                        color: Color(0xFFE24B4A),
-                        size: 15,
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        'No person detected. Rescan.',
-                        style: TextStyle(
-                          color: Color(0xFFF09595),
-                          fontSize: 12,
+                      _CircleTopBtn(
+                        icon: Icons.settings_outlined,
+                        iconColor: iconColor,
+                        bgColor: iconBg,
+                        borderColor: iconBorder,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SettingsScreen(),
+                          ),
                         ),
                       ),
+                      Row(
+                        children: [
+                          _CircleTopBtn(
+                            icon: Icons.timer_outlined,
+                            label: _timerSeconds == 0
+                                ? null
+                                : '${_timerSeconds}s',
+                            active: _timerSeconds > 0,
+                            activeColor: _orange,
+                            iconColor: iconColor,
+                            bgColor: iconBg,
+                            borderColor: iconBorder,
+                            onTap: _cycleTimer,
+                          ),
+                          const SizedBox(width: 8),
+                          _CircleTopBtn(
+                            icon: _flashOn
+                                ? Icons.flash_on_rounded
+                                : Icons.flash_off_rounded,
+                            active: _flashOn,
+                            activeColor: _orange,
+                            iconColor: iconColor,
+                            bgColor: iconBg,
+                            borderColor: iconBorder,
+                            onTap: _toggleFlash,
+                          ),
+                          const SizedBox(width: 8),
+                          _ZoomBtn(
+                            label: _zoomLabel,
+                            textColor: iconColor,
+                            bgColor: iconBg,
+                            borderColor: iconBorder,
+                            onTap: _cycleZoom,
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
               ),
-            ),
 
-          // BOTTOM BAR
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              decoration: const BoxDecoration(color: Colors.black),
-              padding: EdgeInsets.only(
-                top: 28,
-                left: 20,
-                right: 20,
-                bottom: bottomPad + 16,
+              // SCANNING STATUS
+              if (_isScanning && _statusMessage.isNotEmpty)
+                Positioned(
+                  bottom: bottomPad + 100,
+                  left: 0,
+                  right: 0,
+                  child: FadeTransition(
+                    opacity: _statusFade,
+                    child: Center(
+                      child: Text(
+                        _statusMessage.toUpperCase(),
+                        style: const TextStyle(
+                          color: _orange,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 2.0,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+              // NO PERSON DETECTED
+              if (_noPersonDetected && !_isScanning)
+                Positioned(
+                  bottom: bottomPad + 110,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.75),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: Colors.red.withOpacity(0.4),
+                          width: 1,
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: Color(0xFFE24B4A),
+                            size: 15,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'No person detected. Rescan.',
+                            style: TextStyle(
+                              color: Color(0xFFF09595),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+              // BOTTOM BAR
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  color: barBg,
+                  padding: EdgeInsets.only(
+                    top: 20,
+                    left: 20,
+                    right: 20,
+                    bottom: bottomPad + 16,
+                  ),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: _isScanning
+                        ? _buildScanningBottom(
+                            iconColor: iconColor,
+                            sideBtnBg: sideBtnBg,
+                            sideBtnBorder: sideBtnBorder,
+                          )
+                        : _buildDetectBottom(
+                            iconColor: iconColor,
+                            hintColor: hintColor,
+                            pillBg: pillBg,
+                            pillTextColor: pillTextColor,
+                            scanIconColor: scanIconColor,
+                            sideBtnBg: sideBtnBg,
+                            sideBtnBorder: sideBtnBorder,
+                          ),
+                  ),
+                ),
               ),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: _isScanning
-                    ? _buildScanningBottom()
-                    : _buildDetectBottom(),
-              ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildDetectBottom() {
+  Widget _buildDetectBottom({
+    required Color iconColor,
+    required Color hintColor,
+    required Color pillBg,
+    required Color pillTextColor,
+    required Color scanIconColor,
+    required Color sideBtnBg,
+    required Color sideBtnBorder,
+  }) {
     if (_shootPoses.isEmpty) {
       return Column(
         key: const ValueKey('detect-empty'),
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
+          Text(
             'Add poses to your camera',
             style: TextStyle(
-              color: Colors.white54,
+              color: hintColor,
               fontSize: 13,
               letterSpacing: 0.3,
             ),
@@ -508,7 +590,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           _WidePill(
             icon: Icons.crop_free_rounded,
             label: 'Scan scene to add poses',
-            iconColor: const Color(0xFFE8A020),
+            iconColor: scanIconColor,
+            bgColor: pillBg,
+            textColor: pillTextColor,
             onTap: () {
               setState(() => _noPersonDetected = false);
               _startScan();
@@ -518,16 +602,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           _WidePill(
             icon: Icons.person_outline_rounded,
             label: 'Select poses from catalog',
-            iconColor: _orange,
+            iconColor: _purple,
+            bgColor: pillBg,
+            textColor: pillTextColor,
             onTap: _openCatalog,
           ),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _SideBtn(icon: Icons.photo_library_rounded, onTap: _openGallery),
+              _SideBtn(
+                icon: Icons.photo_library_rounded,
+                iconColor: iconColor,
+                bgColor: sideBtnBg,
+                borderColor: sideBtnBorder,
+                onTap: _openGallery,
+              ),
               _SideBtn(
                 icon: Icons.flip_camera_android_outlined,
+                iconColor: iconColor,
+                bgColor: sideBtnBg,
+                borderColor: sideBtnBorder,
                 onTap: _flipCamera,
               ),
             ],
@@ -543,32 +638,38 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _PoseWheelCarousel(
           poses: _shootPoses,
           controller: _wheelController,
-          onCenterChanged: (index) {
-            setState(() => _wheelCenterIndex = index);
-          },
+          onCenterChanged: (index) => setState(() => _wheelCenterIndex = index),
         ),
         const SizedBox(height: 14),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // gallery
-            _SideBtn(icon: Icons.photo_library_rounded, onTap: _openGallery),
-            // small scan
+            _SideBtn(
+              icon: Icons.photo_library_rounded,
+              iconColor: iconColor,
+              bgColor: sideBtnBg,
+              borderColor: sideBtnBorder,
+              onTap: _openGallery,
+            ),
             _SideBtn(
               icon: Icons.crop_free_rounded,
+              iconColor: iconColor,
+              bgColor: sideBtnBg,
+              borderColor: sideBtnBorder,
               onTap: () {
                 setState(() => _noPersonDetected = false);
                 _startScan();
               },
             ),
-            // shutter
             _ShutterBtn(isScanning: false, onTap: _capturePhoto),
-            // catalog with badge
             Stack(
               clipBehavior: Clip.none,
               children: [
                 _SideBtn(
                   icon: Icons.person_outline_rounded,
+                  iconColor: iconColor,
+                  bgColor: sideBtnBg,
+                  borderColor: sideBtnBorder,
                   onTap: _openCatalog,
                 ),
                 if (_shootPoses.isNotEmpty)
@@ -599,9 +700,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
               ],
             ),
-            // flip camera
             _SideBtn(
               icon: Icons.flip_camera_android_outlined,
+              iconColor: iconColor,
+              bgColor: sideBtnBg,
+              borderColor: sideBtnBorder,
               onTap: _flipCamera,
             ),
           ],
@@ -610,14 +713,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildScanningBottom() {
+  Widget _buildScanningBottom({
+    required Color iconColor,
+    required Color sideBtnBg,
+    required Color sideBtnBorder,
+  }) {
     return Row(
       key: const ValueKey('scanning'),
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _SideBtn(icon: Icons.photo_library_rounded, onTap: _openGallery),
+        _SideBtn(
+          icon: Icons.photo_library_rounded,
+          iconColor: iconColor,
+          bgColor: sideBtnBg,
+          borderColor: sideBtnBorder,
+          onTap: _openGallery,
+        ),
         _ShutterBtn(isScanning: true, onTap: null),
-        _SideBtn(icon: Icons.flip_camera_android_outlined, onTap: _flipCamera),
+        _SideBtn(
+          icon: Icons.flip_camera_android_outlined,
+          iconColor: iconColor,
+          bgColor: sideBtnBg,
+          borderColor: sideBtnBorder,
+          onTap: _flipCamera,
+        ),
       ],
     );
   }
@@ -630,16 +749,20 @@ class _CircleTopBtn extends StatelessWidget {
   final String? label;
   final bool active;
   final Color activeColor;
-  final String? tooltip;
+  final Color iconColor;
+  final Color bgColor;
+  final Color borderColor;
   final VoidCallback onTap;
 
   const _CircleTopBtn({
     required this.icon,
     required this.onTap,
+    required this.iconColor,
+    required this.bgColor,
+    required this.borderColor,
     this.label,
     this.active = false,
-    this.activeColor = const Color(0xFFE8A020),
-    this.tooltip,
+    this.activeColor = const Color(0xFF9C6FFF),
   });
 
   @override
@@ -651,13 +774,9 @@ class _CircleTopBtn extends StatelessWidget {
         height: 36,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: active
-              ? activeColor.withOpacity(0.15)
-              : Colors.black.withOpacity(0.5),
+          color: active ? activeColor.withOpacity(0.15) : bgColor,
           border: Border.all(
-            color: active
-                ? activeColor.withOpacity(0.6)
-                : Colors.white.withOpacity(0.2),
+            color: active ? activeColor.withOpacity(0.6) : borderColor,
             width: 0.8,
           ),
         ),
@@ -666,16 +785,12 @@ class _CircleTopBtn extends StatelessWidget {
               ? Text(
                   label!,
                   style: TextStyle(
-                    color: active ? activeColor : Colors.white,
+                    color: active ? activeColor : iconColor,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
                 )
-              : Icon(
-                  icon,
-                  color: active ? activeColor : Colors.white,
-                  size: 17,
-                ),
+              : Icon(icon, color: active ? activeColor : iconColor, size: 17),
         ),
       ),
     );
@@ -684,8 +799,18 @@ class _CircleTopBtn extends StatelessWidget {
 
 class _ZoomBtn extends StatelessWidget {
   final String label;
+  final Color textColor;
+  final Color bgColor;
+  final Color borderColor;
   final VoidCallback onTap;
-  const _ZoomBtn({required this.label, required this.onTap});
+
+  const _ZoomBtn({
+    required this.label,
+    required this.onTap,
+    required this.textColor,
+    required this.bgColor,
+    required this.borderColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -695,15 +820,15 @@ class _ZoomBtn extends StatelessWidget {
         height: 36,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.5),
+          color: bgColor,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
+          border: Border.all(color: borderColor, width: 0.8),
         ),
         child: Center(
           child: Text(
             label,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: textColor,
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
@@ -718,12 +843,16 @@ class _WidePill extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color iconColor;
+  final Color bgColor;
+  final Color textColor;
   final VoidCallback onTap;
 
   const _WidePill({
     required this.icon,
     required this.label,
     required this.onTap,
+    required this.bgColor,
+    required this.textColor,
     this.iconColor = Colors.white,
   });
 
@@ -735,7 +864,7 @@ class _WidePill extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.08),
+          color: bgColor,
           borderRadius: BorderRadius.circular(28),
         ),
         child: Row(
@@ -745,8 +874,8 @@ class _WidePill extends StatelessWidget {
             const SizedBox(width: 10),
             Text(
               label,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: textColor,
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
               ),
@@ -760,8 +889,18 @@ class _WidePill extends StatelessWidget {
 
 class _SideBtn extends StatelessWidget {
   final IconData icon;
+  final Color iconColor;
+  final Color bgColor;
+  final Color borderColor;
   final VoidCallback onTap;
-  const _SideBtn({required this.icon, required this.onTap});
+
+  const _SideBtn({
+    required this.icon,
+    required this.onTap,
+    required this.iconColor,
+    required this.bgColor,
+    required this.borderColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -772,20 +911,25 @@ class _SideBtn extends StatelessWidget {
         height: 46,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: Colors.black.withOpacity(0.5),
-          border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
+          color: bgColor,
+          border: Border.all(color: borderColor, width: 1),
         ),
-        child: Icon(icon, color: Colors.white, size: 20),
+        child: Icon(icon, color: iconColor, size: 20),
       ),
     );
   }
 }
 
-// dotted-border circular button (catalog icon style)
 class _DottedSideBtn extends StatelessWidget {
   final IconData icon;
+  final Color iconColor;
   final VoidCallback onTap;
-  const _DottedSideBtn({required this.icon, required this.onTap});
+
+  const _DottedSideBtn({
+    required this.icon,
+    required this.onTap,
+    required this.iconColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -795,8 +939,8 @@ class _DottedSideBtn extends StatelessWidget {
         width: 46,
         height: 46,
         child: CustomPaint(
-          painter: _DottedCirclePainter(color: Colors.white.withOpacity(0.6)),
-          child: Center(child: Icon(icon, color: Colors.white, size: 20)),
+          painter: _DottedCirclePainter(color: iconColor.withOpacity(0.5)),
+          child: Center(child: Icon(icon, color: iconColor, size: 20)),
         ),
       ),
     );
@@ -988,9 +1132,7 @@ class _PoseWheelCarouselState extends State<_PoseWheelCarousel> {
 
   void _onScroll() {
     if (!widget.controller.hasClients) return;
-    setState(() {
-      _page = widget.controller.page ?? 0;
-    });
+    setState(() => _page = widget.controller.page ?? 0);
     final nearest = _page.round().clamp(0, widget.poses.length - 1);
     widget.onCenterChanged(nearest);
   }
@@ -1012,7 +1154,6 @@ class _PoseWheelCarouselState extends State<_PoseWheelCarousel> {
         itemBuilder: (context, index) {
           final diff = (index - _page);
           final absDiff = diff.abs().clamp(0.0, 2.0);
-
           final scale = 1.0 - (absDiff * 0.28).clamp(0.0, 0.55);
           final angle = diff * 0.55;
           final verticalOffset = absDiff * absDiff * 14;
