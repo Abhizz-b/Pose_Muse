@@ -505,7 +505,7 @@ class _MyPoseCard extends StatelessWidget {
         // Cutout image — no card/box behind it
         _buildPoseThumbnail(pose.imagePath),
 
-        // Fav heart button (top right, below checkmark when selected)
+        // Fav heart button (top right)
         if (!isSelected)
           Positioned(
             top: 6,
@@ -513,20 +513,12 @@ class _MyPoseCard extends StatelessWidget {
             child: GestureDetector(
               onTap: onToggleFavourite,
               behavior: HitTestBehavior.opaque,
-              child: Container(
-                width: 30,
-                height: 30,
-                decoration: const BoxDecoration(
-                  color: Color(0x77000000),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  isFavourite
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  color: isFavourite ? orange : Colors.white,
-                  size: 14,
-                ),
+              child: Icon(
+                isFavourite
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
+                color: isFavourite ? orange : orange.withOpacity(0.5),
+                size: 20,
               ),
             ),
           ),
