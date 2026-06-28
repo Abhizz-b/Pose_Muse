@@ -11,7 +11,7 @@ class MyPosesTab extends StatefulWidget {
   final List<PoseModel> poses;
   final List<LocalPose> allLocalPoses;
   final bool loading;
-  final Color orange, surface, textSecondary;
+  final Color orange, surface, textSecondary, textPrimary, bg, border;
   final Future<void> Function(PoseModel) onRemove;
   final Future<void> Function() onRefresh;
   final List<LocalPose> selectedPoses;
@@ -31,6 +31,9 @@ class MyPosesTab extends StatefulWidget {
     required this.orange,
     required this.surface,
     required this.textSecondary,
+    required this.textPrimary,
+    required this.bg,
+    required this.border,
     required this.onRemove,
     required this.onRefresh,
     required this.selectedPoses,
@@ -99,8 +102,12 @@ class _MyPosesTabState extends State<MyPosesTab> {
           child: _subTabIndex == 2
               ? AlbumsTab(
                   allPoses: widget.poses,
-                  accent: widget.orange, // jo bhi color pass ho raha hai
+                  accent: widget.orange,
+                  surface: widget.surface,
+                  bg: widget.bg,
+                  textPrimary: widget.textPrimary,
                   textSecondary: widget.textSecondary,
+                  border: widget.border,
                 )
               : (allTabEmpty && _subTabIndex == 0)
               ? _buildEmptyState()
@@ -116,7 +123,7 @@ class _MyPosesTabState extends State<MyPosesTab> {
       child: Container(
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color: widget.surface, // ✅ theme-aware ab
+          color: widget.surface, // ✅ theme-aware (was hardcoded 0xFF1A1A1A)
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -168,10 +175,10 @@ class _MyPosesTabState extends State<MyPosesTab> {
                 size: 44,
               ),
               const SizedBox(height: 14),
-              const Text(
+              Text(
                 'No favourites yet',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: widget.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -216,7 +223,7 @@ class _MyPosesTabState extends State<MyPosesTab> {
           if (showAddTile && i == 0) {
             return _AddPoseTile(
               orange: widget.orange,
-              surface: widget.surface, // ✅ ye line add karo
+              surface: widget.surface, // ✅ theme-aware
               onTap: widget.onAddPose,
             );
           }
@@ -226,6 +233,8 @@ class _MyPosesTabState extends State<MyPosesTab> {
             return _ProcessingPoseCard(
               imageFile: processing[processingIndex],
               orange: widget.orange,
+              surface: widget.surface,
+              border: widget.border,
             );
           }
 
@@ -249,34 +258,6 @@ class _MyPosesTabState extends State<MyPosesTab> {
     );
   }
 
-  Widget _buildAlbumsPlaceholder() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.folder_outlined, color: widget.textSecondary, size: 44),
-            const SizedBox(height: 14),
-            const Text(
-              'No albums yet',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Group your poses into albums',
-              style: TextStyle(color: widget.textSecondary, fontSize: 13),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
@@ -288,9 +269,9 @@ class _MyPosesTabState extends State<MyPosesTab> {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: const Color(0xFF1A1A1A),
+                color: widget.surface, // ✅ theme-aware
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFF2A2A2A)),
+                border: Border.all(color: widget.border), // ✅ theme-aware
               ),
               child: Icon(
                 Icons.person_outline_rounded,
@@ -299,11 +280,11 @@ class _MyPosesTabState extends State<MyPosesTab> {
               ),
             ),
             const SizedBox(height: 14),
-            const Text(
+            Text(
               'No saved poses yet',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Color(0xFFF3F3F3),
+                color: widget.textPrimary, // ✅ theme-aware
                 fontSize: 17,
                 fontWeight: FontWeight.w500,
               ),
@@ -363,9 +344,9 @@ class _MyPosesTabState extends State<MyPosesTab> {
         child: Container(
           padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
           decoration: BoxDecoration(
-            color: const Color(0xFF1C1C1C),
+            color: widget.surface, // ✅ theme-aware
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFF2A2A2A)),
+            border: Border.all(color: widget.border), // ✅ theme-aware
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -384,10 +365,10 @@ class _MyPosesTabState extends State<MyPosesTab> {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Remove this pose?',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: widget.textPrimary, // ✅ theme-aware
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -412,13 +393,13 @@ class _MyPosesTabState extends State<MyPosesTab> {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFF333333)),
+                          border: Border.all(color: widget.border),
                         ),
                         alignment: Alignment.center,
-                        child: const Text(
+                        child: Text(
                           'Cancel',
                           style: TextStyle(
-                            color: Colors.white70,
+                            color: widget.textSecondary, // ✅ theme-aware
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                           ),
@@ -557,7 +538,7 @@ class _MyPoseCard extends StatelessWidget {
 // ── Add Pose tile (dashed border, first in grid) ──
 class _AddPoseTile extends StatelessWidget {
   final Color orange;
-  final Color surface; // ✅ naya param
+  final Color surface;
   final VoidCallback onTap;
 
   const _AddPoseTile({
@@ -570,14 +551,15 @@ class _AddPoseTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      behavior: HitTestBehavior.opaque,
+      behavior: HitTestBehavior
+          .opaque, // pura cell tap-able rahe, box chhota hone ke baad bhi
       child: Center(
         child: FractionallySizedBox(
-          widthFactor: 0.42,
-          heightFactor: 0.42,
+          widthFactor: 0.42, // box ki width grid cell ka 62%
+          heightFactor: 0.42, // box ki height grid cell ka 62%
           child: DottedBorderContainer(
             color: orange,
-            surface: surface, // ✅ pass through
+            surface: surface, // ✅ theme-aware
             child: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -607,8 +589,15 @@ class _AddPoseTile extends StatelessWidget {
 class _ProcessingPoseCard extends StatefulWidget {
   final File imageFile;
   final Color orange;
+  final Color surface;
+  final Color border;
 
-  const _ProcessingPoseCard({required this.imageFile, required this.orange});
+  const _ProcessingPoseCard({
+    required this.imageFile,
+    required this.orange,
+    required this.surface,
+    required this.border,
+  });
 
   @override
   State<_ProcessingPoseCard> createState() => _ProcessingPoseCardState();
@@ -637,9 +626,9 @@ class _ProcessingPoseCardState extends State<_ProcessingPoseCard>
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
+        color: widget.surface, // ✅ theme-aware
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2A2A2A)),
+        border: Border.all(color: widget.border), // ✅ theme-aware
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
@@ -771,7 +760,7 @@ class _HoldToRemoveState extends State<_HoldToRemove> {
 // ── Dashed border container ──
 class DottedBorderContainer extends StatelessWidget {
   final Color color;
-  final Color surface; // ✅ naya param
+  final Color surface;
   final Widget child;
   const DottedBorderContainer({
     required this.color,
@@ -785,7 +774,7 @@ class DottedBorderContainer extends StatelessWidget {
       painter: _DashedBorderPainter(color: color),
       child: Container(
         decoration: BoxDecoration(
-          color: surface, // ✅ theme-aware
+          color: surface, // ✅ theme-aware (was hardcoded 0xFF111111)
           borderRadius: BorderRadius.circular(16),
         ),
         child: child,

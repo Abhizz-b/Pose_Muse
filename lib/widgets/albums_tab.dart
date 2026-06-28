@@ -8,12 +8,20 @@ import '../models/pose_model.dart';
 class AlbumsTab extends StatelessWidget {
   final List<PoseModel> allPoses;
   final Color accent;
+  final Color surface;
+  final Color bg;
+  final Color textPrimary;
   final Color textSecondary;
+  final Color border;
 
   const AlbumsTab({
     required this.allPoses,
     required this.accent,
+    required this.surface,
+    required this.bg,
+    required this.textPrimary,
     required this.textSecondary,
+    required this.border,
   });
 
   @override
@@ -22,15 +30,16 @@ class AlbumsTab extends StatelessWidget {
       stream: FirestoreService.albumsStream(),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: Color(0xFF9C6FFF)),
-          );
+          return Center(child: CircularProgressIndicator(color: accent));
         }
         final albums = snap.data ?? [];
 
         if (albums.isEmpty) {
           return _EmptyAlbums(
             accent: accent,
+            surface: surface,
+            border: border,
+            textPrimary: textPrimary,
             onTap: () => _startCreate(context),
           );
         }
@@ -48,6 +57,7 @@ class AlbumsTab extends StatelessWidget {
             if (i == 0) {
               return _NewAlbumTile(
                 accent: accent,
+                surface: surface,
                 onTap: () => _startCreate(context),
               );
             }
@@ -55,6 +65,8 @@ class AlbumsTab extends StatelessWidget {
             return _AlbumCard(
               album: album,
               accent: accent,
+              surface: surface,
+              textPrimary: textPrimary,
               textSecondary: textSecondary,
               allPoses: allPoses,
               onTap: () => Navigator.push(
@@ -64,7 +76,11 @@ class AlbumsTab extends StatelessWidget {
                     album: album,
                     allPoses: allPoses,
                     accent: accent,
+                    surface: surface,
+                    bg: bg,
+                    textPrimary: textPrimary,
                     textSecondary: textSecondary,
+                    border: border,
                   ),
                 ),
               ),
@@ -83,7 +99,10 @@ class AlbumsTab extends StatelessWidget {
       builder: (_) => _PoseSelectSheet(
         allPoses: allPoses,
         accent: accent,
+        surface: surface,
+        textPrimary: textPrimary,
         textSecondary: textSecondary,
+        border: border,
       ),
     );
   }
@@ -91,9 +110,15 @@ class AlbumsTab extends StatelessWidget {
 
 // ── Empty state ──
 class _EmptyAlbums extends StatelessWidget {
-  final Color accent;
+  final Color accent, surface, border, textPrimary;
   final VoidCallback onTap;
-  const _EmptyAlbums({required this.accent, required this.onTap});
+  const _EmptyAlbums({
+    required this.accent,
+    required this.surface,
+    required this.border,
+    required this.textPrimary,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -105,17 +130,17 @@ class _EmptyAlbums extends StatelessWidget {
             width: 68,
             height: 68,
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1A1A),
+              color: surface,
               shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFF2A2A2A)),
+              border: Border.all(color: border),
             ),
             child: Icon(Icons.folder_outlined, color: accent, size: 28),
           ),
           const SizedBox(height: 14),
-          const Text(
+          Text(
             'No albums yet',
             style: TextStyle(
-              color: Colors.white,
+              color: textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w500,
             ),
@@ -159,9 +184,13 @@ class _EmptyAlbums extends StatelessWidget {
 
 // ── New album dashed tile ──
 class _NewAlbumTile extends StatelessWidget {
-  final Color accent;
+  final Color accent, surface;
   final VoidCallback onTap;
-  const _NewAlbumTile({required this.accent, required this.onTap});
+  const _NewAlbumTile({
+    required this.accent,
+    required this.surface,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -175,7 +204,7 @@ class _NewAlbumTile extends StatelessWidget {
               painter: _DashedRectPainter(color: accent),
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF111111),
+                  color: surface,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Center(
@@ -207,13 +236,15 @@ class _NewAlbumTile extends StatelessWidget {
 // ── Album card with 4-photo mosaic ──
 class _AlbumCard extends StatelessWidget {
   final Album album;
-  final Color accent, textSecondary;
+  final Color accent, surface, textPrimary, textSecondary;
   final List<PoseModel> allPoses;
   final VoidCallback onTap;
 
   const _AlbumCard({
     required this.album,
     required this.accent,
+    required this.surface,
+    required this.textPrimary,
     required this.textSecondary,
     required this.allPoses,
     required this.onTap,
@@ -233,7 +264,7 @@ class _AlbumCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               child: paths.isEmpty
                   ? Container(
-                      color: const Color(0xFF1A1A1A),
+                      color: surface,
                       child: Icon(
                         Icons.folder_outlined,
                         color: textSecondary,
@@ -249,7 +280,7 @@ class _AlbumCard extends StatelessWidget {
                         if (i < paths.length) {
                           return _thumb(paths[i]);
                         }
-                        return Container(color: const Color(0xFF1F1F1F));
+                        return Container(color: surface);
                       }),
                     ),
             ),
@@ -259,8 +290,8 @@ class _AlbumCard extends StatelessWidget {
             album.name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: textPrimary,
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
@@ -280,13 +311,13 @@ class _AlbumCard extends StatelessWidget {
       return Image.file(
         File(path),
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(color: const Color(0xFF1F1F1F)),
+        errorBuilder: (_, __, ___) => Container(color: surface),
       );
     }
     return Image.asset(
       path,
       fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => Container(color: const Color(0xFF1F1F1F)),
+      errorBuilder: (_, __, ___) => Container(color: surface),
     );
   }
 }
@@ -294,11 +325,14 @@ class _AlbumCard extends StatelessWidget {
 // ── Step 1: Pose selection bottom sheet ──
 class _PoseSelectSheet extends StatefulWidget {
   final List<PoseModel> allPoses;
-  final Color accent, textSecondary;
+  final Color accent, surface, textPrimary, textSecondary, border;
   const _PoseSelectSheet({
     required this.allPoses,
     required this.accent,
+    required this.surface,
+    required this.textPrimary,
     required this.textSecondary,
+    required this.border,
   });
 
   @override
@@ -315,9 +349,9 @@ class _PoseSelectSheetState extends State<_PoseSelectSheet> {
       minChildSize: 0.5,
       maxChildSize: 0.95,
       builder: (_, controller) => Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF141414),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: widget.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           children: [
@@ -327,7 +361,7 @@ class _PoseSelectSheetState extends State<_PoseSelectSheet> {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFF333333),
+                color: widget.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -339,18 +373,18 @@ class _PoseSelectSheetState extends State<_PoseSelectSheet> {
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: const Icon(
+                    child: Icon(
                       Icons.close_rounded,
-                      color: Colors.white,
+                      color: widget.textPrimary,
                       size: 20,
                     ),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Select poses',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.white,
+                        color: widget.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -420,10 +454,9 @@ class _PoseSelectSheetState extends State<_PoseSelectSheet> {
                             child: Container(
                               width: 22,
                               height: 22,
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: Colors.white38,
-                                  width: 1.5,
+                              decoration: const BoxDecoration(
+                                border: Border.fromBorderSide(
+                                  BorderSide(color: Colors.white38, width: 1.5),
                                 ),
                                 shape: BoxShape.circle,
                                 color: Colors.black38,
@@ -447,14 +480,14 @@ class _PoseSelectSheetState extends State<_PoseSelectSheet> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 13),
                         decoration: BoxDecoration(
-                          border: Border.all(color: const Color(0xFF333333)),
+                          border: Border.all(color: widget.border),
                           borderRadius: BorderRadius.circular(14),
                         ),
                         alignment: Alignment.center,
-                        child: const Text(
+                        child: Text(
                           'Cancel',
                           style: TextStyle(
-                            color: Colors.white70,
+                            color: widget.textSecondary,
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                           ),
@@ -509,14 +542,17 @@ class _PoseSelectSheetState extends State<_PoseSelectSheet> {
       backgroundColor: Colors.transparent,
       builder: (_) => _NameAlbumSheet(
         accent: widget.accent,
+        surface: widget.surface,
+        textPrimary: widget.textPrimary,
+        textSecondary: widget.textSecondary,
+        border: widget.border,
         selectedPaths: _selected.toList(),
       ),
     );
   }
 
   Widget _poseThumb(String? path) {
-    if (path == null || path.isEmpty)
-      return Container(color: const Color(0xFF1A1A1A));
+    if (path == null || path.isEmpty) return Container(color: widget.surface);
     if (path.startsWith('/')) return Image.file(File(path), fit: BoxFit.cover);
     return Image.asset(path, fit: BoxFit.cover);
   }
@@ -524,9 +560,16 @@ class _PoseSelectSheetState extends State<_PoseSelectSheet> {
 
 // ── Step 2: Name album bottom sheet ──
 class _NameAlbumSheet extends StatefulWidget {
-  final Color accent;
+  final Color accent, surface, textPrimary, textSecondary, border;
   final List<String> selectedPaths;
-  const _NameAlbumSheet({required this.accent, required this.selectedPaths});
+  const _NameAlbumSheet({
+    required this.accent,
+    required this.surface,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.border,
+    required this.selectedPaths,
+  });
 
   @override
   State<_NameAlbumSheet> createState() => _NameAlbumSheetState();
@@ -564,9 +607,9 @@ class _NameAlbumSheetState extends State<_NameAlbumSheet> {
       ),
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-        decoration: const BoxDecoration(
-          color: Color(0xFF161616),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: widget.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -577,16 +620,16 @@ class _NameAlbumSheetState extends State<_NameAlbumSheet> {
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF333333),
+                  color: widget.border,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
             const SizedBox(height: 18),
-            const Text(
+            Text(
               'Album name',
               style: TextStyle(
-                color: Colors.white,
+                color: widget.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
@@ -595,19 +638,16 @@ class _NameAlbumSheetState extends State<_NameAlbumSheet> {
             TextField(
               controller: _controller,
               autofocus: true,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
+              style: TextStyle(color: widget.textPrimary, fontSize: 14),
               cursorColor: widget.accent,
               decoration: InputDecoration(
                 hintText: 'e.g. Summer shoot',
-                hintStyle: const TextStyle(
-                  color: Color(0xFF555555),
-                  fontSize: 14,
-                ),
+                hintStyle: TextStyle(color: widget.textSecondary, fontSize: 14),
                 filled: true,
-                fillColor: const Color(0xFF1F1F1F),
+                fillColor: widget.surface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+                  borderSide: BorderSide(color: widget.border),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -615,7 +655,7 @@ class _NameAlbumSheetState extends State<_NameAlbumSheet> {
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+                  borderSide: BorderSide(color: widget.border),
                 ),
               ),
               onSubmitted: (_) => _save(),
@@ -629,14 +669,14 @@ class _NameAlbumSheetState extends State<_NameAlbumSheet> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 13),
                       decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFF333333)),
+                        border: Border.all(color: widget.border),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       alignment: Alignment.center,
-                      child: const Text(
+                      child: Text(
                         'Cancel',
                         style: TextStyle(
-                          color: Colors.white70,
+                          color: widget.textSecondary,
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                         ),
@@ -688,13 +728,17 @@ class _NameAlbumSheetState extends State<_NameAlbumSheet> {
 class AlbumDetailScreen extends StatefulWidget {
   final Album album;
   final List<PoseModel> allPoses;
-  final Color accent, textSecondary;
+  final Color accent, surface, bg, textPrimary, textSecondary, border;
 
   const AlbumDetailScreen({
     required this.album,
     required this.allPoses,
     required this.accent,
+    required this.surface,
+    required this.bg,
+    required this.textPrimary,
     required this.textSecondary,
+    required this.border,
   });
 
   @override
@@ -733,7 +777,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0D0D),
+      backgroundColor: widget.bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -744,9 +788,9 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: const Icon(
+                    child: Icon(
                       Icons.arrow_back_ios_new_rounded,
-                      color: Colors.white,
+                      color: widget.textPrimary,
                       size: 18,
                     ),
                   ),
@@ -759,8 +803,8 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                                 child: TextField(
                                   controller: _nameCtrl,
                                   autofocus: true,
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                  style: TextStyle(
+                                    color: widget.textPrimary,
                                     fontSize: 15,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -772,7 +816,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                                       vertical: 8,
                                     ),
                                     filled: true,
-                                    fillColor: const Color(0xFF1F1F1F),
+                                    fillColor: widget.surface,
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
                                       borderSide: BorderSide(
@@ -811,8 +855,8 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                               Flexible(
                                 child: Text(
                                   widget.album.name,
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                  style: TextStyle(
+                                    color: widget.textPrimary,
                                     fontSize: 15,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -874,7 +918,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                         painter: _DashedRectPainter(color: widget.accent),
                         child: Container(
                           decoration: BoxDecoration(
-                            color: const Color(0xFF111111),
+                            color: widget.surface,
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Center(
@@ -931,6 +975,9 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
         album: widget.album,
         allPoses: widget.allPoses,
         accent: widget.accent,
+        surface: widget.surface,
+        textPrimary: widget.textPrimary,
+        border: widget.border,
       ),
     );
   }
@@ -939,11 +986,11 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
     final del = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF1C1C1C),
+        backgroundColor: widget.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
+        title: Text(
           'Delete album?',
-          style: TextStyle(color: Colors.white, fontSize: 15),
+          style: TextStyle(color: widget.textPrimary, fontSize: 15),
         ),
         content: Text(
           'This will remove the album but not your poses.',
@@ -952,9 +999,9 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text(
+            child: Text(
               'Cancel',
-              style: TextStyle(color: Colors.white70),
+              style: TextStyle(color: widget.textSecondary),
             ),
           ),
           TextButton(
@@ -972,11 +1019,14 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
 class _AddMoreSheet extends StatefulWidget {
   final Album album;
   final List<PoseModel> allPoses;
-  final Color accent;
+  final Color accent, surface, textPrimary, border;
   const _AddMoreSheet({
     required this.album,
     required this.allPoses,
     required this.accent,
+    required this.surface,
+    required this.textPrimary,
+    required this.border,
   });
 
   @override
@@ -1004,9 +1054,9 @@ class _AddMoreSheetState extends State<_AddMoreSheet> {
       initialChildSize: 0.9,
       maxChildSize: 0.95,
       builder: (_, controller) => Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF141414),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: widget.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           children: [
@@ -1015,7 +1065,7 @@ class _AddMoreSheetState extends State<_AddMoreSheet> {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFF333333),
+                color: widget.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -1026,18 +1076,18 @@ class _AddMoreSheetState extends State<_AddMoreSheet> {
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: const Icon(
+                    child: Icon(
                       Icons.close_rounded,
-                      color: Colors.white,
+                      color: widget.textPrimary,
                       size: 20,
                     ),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Add poses',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.white,
+                        color: widget.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
