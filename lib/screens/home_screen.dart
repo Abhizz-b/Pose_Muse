@@ -36,6 +36,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   List<PoseModel> _shootPoses = [];
   int _wheelCenterIndex = 0;
   late PageController _wheelController;
+  PoseModel? _previewPose;
 
   late AnimationController _scanLineController;
   late Animation<double> _scanLineAnim;
@@ -381,6 +382,72 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 child: CustomPaint(painter: _CornerPainter(color: _orange)),
               ),
 
+              // POSE PREVIEW OVERLAY - carousel se tap kiya hua pose bada dikhta hai
+              if (_previewPose != null)
+                Positioned.fill(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _previewPose = null),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      transitionBuilder: (child, animation) => FadeTransition(
+                        opacity: animation,
+                        child: ScaleTransition(
+                          scale: Tween<double>(begin: 0.85, end: 1.0).animate(
+                            CurvedAnimation(
+                              parent: animation,
+                              curve: Curves.easeOutBack,
+                            ),
+                          ),
+                          child: child,
+                        ),
+                      ),
+                      child: Container(
+                        key: ValueKey<String?>(_previewPose!.imagePath),
+                        // koi dark tint nahi — camera background seedha
+                        // peeche se dikhna chahiye, jaisa reference mein hai
+                        padding: EdgeInsets.only(
+                          top: topPad + 55,
+                          bottom: bottomPad + 95,
+                        ),
+                        child: Center(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(18),
+                            child: _previewPose!.imagePath != null
+                                ? (_previewPose!.imagePath!.startsWith('/')
+                                      ? Image.file(
+                                          File(_previewPose!.imagePath!),
+                                          fit: BoxFit.contain,
+                                          errorBuilder: (_, __, ___) =>
+                                              Container(
+                                                color: const Color(0xFF1A1A1A),
+                                                child: const Icon(
+                                                  Icons.image,
+                                                  color: Colors.white38,
+                                                  size: 40,
+                                                ),
+                                              ),
+                                        )
+                                      : Image.asset(
+                                          _previewPose!.imagePath!,
+                                          fit: BoxFit.contain,
+                                          errorBuilder: (_, __, ___) =>
+                                              Container(
+                                                color: const Color(0xFF1A1A1A),
+                                                child: const Icon(
+                                                  Icons.image,
+                                                  color: Colors.white38,
+                                                  size: 40,
+                                                ),
+                                              ),
+                                        ))
+                                : Container(color: const Color(0xFF1A1A1A)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
               // SHUTTER FLASH
               Positioned.fill(
                 child: AnimatedOpacity(
@@ -638,7 +705,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _PoseWheelCarousel(
           poses: _shootPoses,
           controller: _wheelController,
-          onCenterChanged: (index) => setState(() => _wheelCenterIndex = index),
+          onCenterChanged: (index) {
+            setState(() {
+              _wheelCenterIndex = index;
+              // agar bada preview already khula hai, scroll karte hi
+              // usko bhi naye center wale pose se sync kar do
+              if (_previewPose != null) {
+                _previewPose = _shootPoses[index];
+              }
+            });
+          },
+          onPoseTap: (pose) {
+            setState(() {
+              _previewPose = (_previewPose == pose) ? null : pose;
+            });
+          },
         ),
         const SizedBox(height: 14),
         Row(
@@ -1110,11 +1191,13 @@ class _PoseWheelCarousel extends StatefulWidget {
   final List<PoseModel> poses;
   final PageController controller;
   final ValueChanged<int> onCenterChanged;
+  final ValueChanged<PoseModel>? onPoseTap;
 
   const _PoseWheelCarousel({
     required this.poses,
     required this.controller,
     required this.onCenterChanged,
+    this.onPoseTap,
   });
 
   @override
@@ -1146,7 +1229,7 @@ class _PoseWheelCarouselState extends State<_PoseWheelCarousel> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 100,
+      height: 64,
       child: PageView.builder(
         controller: widget.controller,
         itemCount: widget.poses.length,
@@ -1161,11 +1244,18 @@ class _PoseWheelCarouselState extends State<_PoseWheelCarousel> {
 
           return GestureDetector(
             onTap: () {
-              widget.controller.animateToPage(
-                index,
-                duration: const Duration(milliseconds: 450),
-                curve: Curves.easeOutCubic,
-              );
+              final isAlreadyCentered = index == _page.round();
+              if (isAlreadyCentered) {
+                // pehle se center mein hai -> seedha bada preview dikhao
+                widget.onPoseTap?.call(widget.poses[index]);
+              } else {
+                // pehle center mein le aao, preview baad mein
+                widget.controller.animateToPage(
+                  index,
+                  duration: const Duration(milliseconds: 450),
+                  curve: Curves.easeOutCubic,
+                );
+              }
             },
             child: Transform.translate(
               offset: Offset(0, verticalOffset),
@@ -1180,27 +1270,23 @@ class _PoseWheelCarouselState extends State<_PoseWheelCarousel> {
                     opacity: opacity,
                     child: Center(
                       child: Container(
-                        width: 64,
-                        height: 64,
-                        margin: const EdgeInsets.symmetric(horizontal: 6),
+                        width: 46,
+                        height: 46,
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.4),
-                            width: 1,
-                          ),
+                          borderRadius: BorderRadius.circular(10),
                           boxShadow: absDiff < 0.3
                               ? [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.4),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
+                                    color: Colors.black.withOpacity(0.35),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
                                   ),
                                 ]
                               : [],
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(13),
+                          borderRadius: BorderRadius.circular(10),
                           child: widget.poses[index].imagePath != null
                               ? (widget.poses[index].imagePath!.startsWith('/')
                                     ? Image.file(
