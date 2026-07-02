@@ -383,85 +383,103 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
 
               // POSE PREVIEW OVERLAY - carousel se tap kiya hua pose bada dikhta hai
-              if (_previewPose != null)
-                Positioned.fill(
+              Positioned.fill(
+                child: IgnorePointer(
+                  // jab preview band hai to ye layer camera taps ko block
+                  // na kare
+                  ignoring: _previewPose == null,
                   child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
                     onTap: () => setState(() => _previewPose = null),
                     child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 500),
+                      duration: const Duration(milliseconds: 350),
                       transitionBuilder: (child, animation) {
                         // "jump up" effect: chhota + neeche se shuru hoke
                         // upar apni jagah pe scale + slide karke aata hai
+                        // (curve snappy hai, koi lagging overshoot nahi)
                         final curved = CurvedAnimation(
                           parent: animation,
-                          curve: Curves.easeOutBack,
+                          curve: Curves.easeOutCubic,
                         );
                         return SlideTransition(
                           position: Tween<Offset>(
-                            begin: const Offset(0, 0.35),
+                            begin: const Offset(0, 0.3),
                             end: Offset.zero,
                           ).animate(curved),
                           child: ScaleTransition(
                             scale: Tween<double>(
-                              begin: 0.35,
+                              begin: 0.4,
                               end: 1.0,
                             ).animate(curved),
                             child: FadeTransition(
-                              opacity: CurvedAnimation(
-                                parent: animation,
-                                curve: const Interval(0.0, 0.4),
-                              ),
+                              opacity: curved,
                               child: child,
                             ),
                           ),
                         );
                       },
-                      child: Container(
-                        key: ValueKey<String?>(_previewPose!.imagePath),
-                        // koi dark tint nahi — camera background seedha
-                        // peeche se dikhna chahiye, jaisa reference mein hai
-                        padding: EdgeInsets.only(
-                          top: topPad + 55,
-                          bottom: bottomPad + 95,
-                        ),
-                        child: Center(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(18),
-                            child: _previewPose!.imagePath != null
-                                ? (_previewPose!.imagePath!.startsWith('/')
-                                      ? Image.file(
-                                          File(_previewPose!.imagePath!),
-                                          fit: BoxFit.contain,
-                                          errorBuilder: (_, __, ___) =>
-                                              Container(
-                                                color: const Color(0xFF1A1A1A),
-                                                child: const Icon(
-                                                  Icons.image,
-                                                  color: Colors.white38,
-                                                  size: 40,
-                                                ),
-                                              ),
-                                        )
-                                      : Image.asset(
-                                          _previewPose!.imagePath!,
-                                          fit: BoxFit.contain,
-                                          errorBuilder: (_, __, ___) =>
-                                              Container(
-                                                color: const Color(0xFF1A1A1A),
-                                                child: const Icon(
-                                                  Icons.image,
-                                                  color: Colors.white38,
-                                                  size: 40,
-                                                ),
-                                              ),
-                                        ))
-                                : Container(color: const Color(0xFF1A1A1A)),
-                          ),
-                        ),
-                      ),
+                      child: _previewPose == null
+                          ? const SizedBox.expand(
+                              key: ValueKey('empty-preview'),
+                            )
+                          : Container(
+                              key: ValueKey<String?>(_previewPose!.imagePath),
+                              // koi dark tint nahi — camera background seedha
+                              // peeche se dikhna chahiye, jaisa reference mein hai
+                              // color transparent hai (dark tint ke liye nahi,
+                              // sirf poora area tap-detectable banane ke liye)
+                              color: Colors.transparent,
+                              padding: EdgeInsets.only(
+                                top: topPad + 55,
+                                bottom: bottomPad + 95,
+                              ),
+                              child: Center(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(18),
+                                  child: _previewPose!.imagePath != null
+                                      ? (_previewPose!.imagePath!.startsWith(
+                                              '/',
+                                            )
+                                            ? Image.file(
+                                                File(_previewPose!.imagePath!),
+                                                fit: BoxFit.contain,
+                                                errorBuilder: (_, __, ___) =>
+                                                    Container(
+                                                      color: const Color(
+                                                        0xFF1A1A1A,
+                                                      ),
+                                                      child: const Icon(
+                                                        Icons.image,
+                                                        color: Colors.white38,
+                                                        size: 40,
+                                                      ),
+                                                    ),
+                                              )
+                                            : Image.asset(
+                                                _previewPose!.imagePath!,
+                                                fit: BoxFit.contain,
+                                                errorBuilder: (_, __, ___) =>
+                                                    Container(
+                                                      color: const Color(
+                                                        0xFF1A1A1A,
+                                                      ),
+                                                      child: const Icon(
+                                                        Icons.image,
+                                                        color: Colors.white38,
+                                                        size: 40,
+                                                      ),
+                                                    ),
+                                              ))
+                                      : Container(
+                                          color: const Color(0xFF1A1A1A),
+                                        ),
+                                ),
+                              ),
+                            ),
                     ),
                   ),
                 ),
+              ),
 
               // SHUTTER FLASH
               Positioned.fill(
