@@ -388,19 +388,34 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   child: GestureDetector(
                     onTap: () => setState(() => _previewPose = null),
                     child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      transitionBuilder: (child, animation) => FadeTransition(
-                        opacity: animation,
-                        child: ScaleTransition(
-                          scale: Tween<double>(begin: 0.85, end: 1.0).animate(
-                            CurvedAnimation(
-                              parent: animation,
-                              curve: Curves.easeOutBack,
+                      duration: const Duration(milliseconds: 500),
+                      transitionBuilder: (child, animation) {
+                        // "jump up" effect: chhota + neeche se shuru hoke
+                        // upar apni jagah pe scale + slide karke aata hai
+                        final curved = CurvedAnimation(
+                          parent: animation,
+                          curve: Curves.easeOutBack,
+                        );
+                        return SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.35),
+                            end: Offset.zero,
+                          ).animate(curved),
+                          child: ScaleTransition(
+                            scale: Tween<double>(
+                              begin: 0.35,
+                              end: 1.0,
+                            ).animate(curved),
+                            child: FadeTransition(
+                              opacity: CurvedAnimation(
+                                parent: animation,
+                                curve: const Interval(0.0, 0.4),
+                              ),
+                              child: child,
                             ),
                           ),
-                          child: child,
-                        ),
-                      ),
+                        );
+                      },
                       child: Container(
                         key: ValueKey<String?>(_previewPose!.imagePath),
                         // koi dark tint nahi — camera background seedha
@@ -705,6 +720,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _PoseWheelCarousel(
           poses: _shootPoses,
           controller: _wheelController,
+          previewedPose: _previewPose,
           onCenterChanged: (index) {
             setState(() {
               _wheelCenterIndex = index;
@@ -1192,12 +1208,14 @@ class _PoseWheelCarousel extends StatefulWidget {
   final PageController controller;
   final ValueChanged<int> onCenterChanged;
   final ValueChanged<PoseModel>? onPoseTap;
+  final PoseModel? previewedPose;
 
   const _PoseWheelCarousel({
     required this.poses,
     required this.controller,
     required this.onCenterChanged,
     this.onPoseTap,
+    this.previewedPose,
   });
 
   @override
@@ -1241,6 +1259,13 @@ class _PoseWheelCarouselState extends State<_PoseWheelCarousel> {
           final angle = diff * 0.55;
           final verticalOffset = absDiff * absDiff * 14;
           final opacity = (1.0 - absDiff * 0.45).clamp(0.35, 1.0);
+          final isBeingPreviewed = widget.poses[index] == widget.previewedPose;
+
+          if (isBeingPreviewed) {
+            // ye pose abhi bada dikh raha hai -> carousel mein blank
+            // chhod do taaki duplicate na dikhe, spacing same rahegi
+            return const SizedBox(width: 54, height: 64);
+          }
 
           return GestureDetector(
             onTap: () {
