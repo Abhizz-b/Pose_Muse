@@ -392,34 +392,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     behavior: HitTestBehavior.opaque,
                     onTap: () => setState(() => _previewPose = null),
                     child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 350),
+                      duration: const Duration(milliseconds: 280),
+                      // khulte waqt halka bounce ke saath pop-in,
+                      // band hote waqt clean aur fast shrink — koi
+                      // slide/diagonal motion nahi, sirf scale+fade
+                      switchInCurve: Curves.easeOutBack,
+                      switchOutCurve: Curves.easeIn,
                       transitionBuilder: (child, animation) {
-                        // "jump up" effect: chhota + neeche se shuru hoke
-                        // upar apni jagah pe scale + slide karke aata hai
-                        // (curve snappy hai, koi lagging overshoot nahi)
-                        final curved = CurvedAnimation(
-                          parent: animation,
-                          curve: Curves.easeOutCubic,
-                        );
-                        return SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0, 0.3),
-                            end: Offset.zero,
-                          ).animate(curved),
-                          child: ScaleTransition(
-                            scale: Tween<double>(
-                              begin: 0.4,
-                              end: 1.0,
-                            ).animate(curved),
-                            child: FadeTransition(
-                              opacity: curved,
-                              child: child,
-                            ),
+                        return ScaleTransition(
+                          scale: Tween<double>(
+                            begin: 0.5,
+                            end: 1.0,
+                          ).animate(animation),
+                          child: FadeTransition(
+                            opacity: animation,
+                            child: child,
                           ),
                         );
                       },
                       child: _previewPose == null
-                          ? const SizedBox.expand(key: ValueKey('empty-preview'))
+                          ? const SizedBox.expand(
+                              key: ValueKey('empty-preview'),
+                            )
                           : Container(
                               key: ValueKey<String?>(_previewPose!.imagePath),
                               // koi dark tint nahi — camera background seedha
@@ -429,13 +423,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               color: Colors.transparent,
                               padding: EdgeInsets.only(
                                 top: topPad + 55,
-                                bottom: bottomPad + 95,
+                                bottom: bottomPad + 110,
                               ),
                               child: Center(
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(18),
                                   child: _previewPose!.imagePath != null
-                                      ? (_previewPose!.imagePath!.startsWith('/')
+                                      ? (_previewPose!.imagePath!.startsWith(
+                                              '/',
+                                            )
                                             ? Image.file(
                                                 File(_previewPose!.imagePath!),
                                                 fit: BoxFit.contain,
@@ -1267,7 +1263,7 @@ class _PoseWheelCarouselState extends State<_PoseWheelCarousel> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 64,
+      height: 78,
       child: PageView.builder(
         controller: widget.controller,
         itemCount: widget.poses.length,
@@ -1278,13 +1274,13 @@ class _PoseWheelCarouselState extends State<_PoseWheelCarousel> {
           final scale = 1.0 - (absDiff * 0.28).clamp(0.0, 0.55);
           final angle = diff * 0.55;
           final verticalOffset = absDiff * absDiff * 14;
-          final opacity = (1.0 - absDiff * 0.45).clamp(0.35, 1.0);
+          final opacity = (1.0 - absDiff * 0.35).clamp(0.55, 1.0);
           final isBeingPreviewed = widget.poses[index] == widget.previewedPose;
 
           if (isBeingPreviewed) {
             // ye pose abhi bada dikh raha hai -> carousel mein blank
             // chhod do taaki duplicate na dikhe, spacing same rahegi
-            return const SizedBox(width: 54, height: 64);
+            return const SizedBox(width: 64, height: 78);
           }
 
           return GestureDetector(
@@ -1315,9 +1311,9 @@ class _PoseWheelCarouselState extends State<_PoseWheelCarousel> {
                     opacity: opacity,
                     child: Center(
                       child: Container(
-                        width: 46,
-                        height: 46,
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: 58,
+                        height: 58,
+                        margin: const EdgeInsets.symmetric(horizontal: 5),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: absDiff < 0.3
