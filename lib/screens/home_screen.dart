@@ -148,24 +148,46 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       }
     }
 
-    final messages = [
-      'Scanning Environment...',
-      'Detecting Subject...',
-      'Generating Pose Ideas...',
-    ];
+    // Turant "Scanning Environment..." dikhao aur usi ke saath actual
+    // detection chalao — koi fake wait nahi, ye asli kaam ho raha hai
+    if (!mounted) return;
+    await _statusFadeController.reverse();
+    setState(() => _statusMessage = 'Scanning Environment...');
+    _statusFadeController.forward(from: 0);
+
+    ScanResult scanResult;
+    try {
+      scanResult = await DetectionService.analyze(_cameraController!);
+    } catch (e, stack) {
+      // pehle silently noPerson maan liya jata tha — ab error print
+      // hoga taaki asli wajah pata chale (ML Kit setup issue waghera)
+      debugPrint('❌ DetectionService.analyze() failed: $e');
+      debugPrint('$stack');
+      scanResult = ScanResult.noPerson;
+    }
+
+    if (!mounted) return;
+
+    // Person nahi mila -> turant ruk jao, aage ki fake animation
+    // messages chalane ki zaroorat nahi
+    if (scanResult == ScanResult.noPerson) {
+      setState(() {
+        _isScanning = false;
+        _statusMessage = '';
+        _noPersonDetected = true;
+      });
+      HapticFeedback.lightImpact();
+      return;
+    }
+
+    // Person mil gaya -> ab baaki polish messages dikha ke catalog kholo
+    final messages = ['Detecting Subject...', 'Generating Pose Ideas...'];
     for (final msg in messages) {
       if (!mounted) return;
       await _statusFadeController.reverse();
       setState(() => _statusMessage = msg);
       _statusFadeController.forward(from: 0);
-      await Future.delayed(const Duration(milliseconds: 950));
-    }
-
-    ScanResult scanResult;
-    try {
-      scanResult = await DetectionService.analyze(_cameraController!);
-    } catch (e) {
-      scanResult = ScanResult.noPerson;
+      await Future.delayed(const Duration(milliseconds: 700));
     }
 
     if (!mounted) return;
@@ -174,11 +196,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _statusMessage = '';
     });
     HapticFeedback.lightImpact();
-
-    if (scanResult == ScanResult.noPerson) {
-      setState(() => _noPersonDetected = true);
-      return;
-    }
 
     _openCatalog(tabIndex: 0, scanResult: scanResult);
   }

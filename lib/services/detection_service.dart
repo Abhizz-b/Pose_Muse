@@ -48,6 +48,17 @@ class DetectionService {
           visible(PoseLandmarkType.rightShoulder);
 
       return fullBodyVisible ? ScanResult.fullBody : ScanResult.selfie;
+    } catch (e, stack) {
+      // Detection ya capture fail hua — ML Kit setup issue, permission
+      // issue, ya camera busy hona (common causes) print kar rahe hain
+      // taaki debug karna aasan ho. Ye function ab exception rethrow
+      // karta hai — caller (home_screen) usko catch karega aur
+      // noPerson maan lega, lekin ab error visible hoga console mein.
+      // ignore: avoid_print
+      print('❌ DetectionService error: $e');
+      // ignore: avoid_print
+      print(stack);
+      rethrow;
     } finally {
       // Delete the temp scan frame — don't clutter the user's gallery
       if (frame != null) {
