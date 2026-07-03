@@ -37,6 +37,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _wheelCenterIndex = 0;
   late PageController _wheelController;
   PoseModel? _previewPose;
+  bool _isGhostPreview = false;
 
   late AnimationController _scanLineController;
   late Animation<double> _scanLineAnim;
@@ -390,7 +391,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ignoring: _previewPose == null,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () => setState(() => _previewPose = null),
+                    onTap: () {
+                      setState(() {
+                        if (!_isGhostPreview) {
+                          // pehla tap: solid se ghost/transparent mode mein
+                          _isGhostPreview = true;
+                        } else {
+                          // dusra tap: poori tarah band kar do
+                          _previewPose = null;
+                          _isGhostPreview = false;
+                        }
+                      });
+                    },
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 280),
                       // khulte waqt halka bounce ke saath pop-in,
@@ -426,45 +438,65 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 bottom: bottomPad + 110,
                               ),
                               child: Center(
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(18),
-                                  child: _previewPose!.imagePath != null
-                                      ? (_previewPose!.imagePath!.startsWith(
-                                              '/',
-                                            )
-                                            ? Image.file(
-                                                File(_previewPose!.imagePath!),
-                                                fit: BoxFit.contain,
-                                                errorBuilder: (_, __, ___) =>
-                                                    Container(
-                                                      color: const Color(
-                                                        0xFF1A1A1A,
-                                                      ),
-                                                      child: const Icon(
-                                                        Icons.image,
-                                                        color: Colors.white38,
-                                                        size: 40,
-                                                      ),
+                                child: AnimatedScale(
+                                  duration: const Duration(milliseconds: 250),
+                                  scale: _isGhostPreview ? 1.18 : 1.0,
+                                  curve: Curves.easeOutCubic,
+                                  child: AnimatedOpacity(
+                                    duration: const Duration(milliseconds: 250),
+                                    opacity: _isGhostPreview ? 0.45 : 1.0,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(18),
+                                      child: _previewPose!.imagePath != null
+                                          ? (_previewPose!.imagePath!
+                                                    .startsWith('/')
+                                                ? Image.file(
+                                                    File(
+                                                      _previewPose!.imagePath!,
                                                     ),
-                                              )
-                                            : Image.asset(
-                                                _previewPose!.imagePath!,
-                                                fit: BoxFit.contain,
-                                                errorBuilder: (_, __, ___) =>
-                                                    Container(
-                                                      color: const Color(
-                                                        0xFF1A1A1A,
-                                                      ),
-                                                      child: const Icon(
-                                                        Icons.image,
-                                                        color: Colors.white38,
-                                                        size: 40,
-                                                      ),
-                                                    ),
-                                              ))
-                                      : Container(
-                                          color: const Color(0xFF1A1A1A),
-                                        ),
+                                                    fit: BoxFit.contain,
+                                                    errorBuilder:
+                                                        (
+                                                          _,
+                                                          __,
+                                                          ___,
+                                                        ) => Container(
+                                                          color: const Color(
+                                                            0xFF1A1A1A,
+                                                          ),
+                                                          child: const Icon(
+                                                            Icons.image,
+                                                            color:
+                                                                Colors.white38,
+                                                            size: 40,
+                                                          ),
+                                                        ),
+                                                  )
+                                                : Image.asset(
+                                                    _previewPose!.imagePath!,
+                                                    fit: BoxFit.contain,
+                                                    errorBuilder:
+                                                        (
+                                                          _,
+                                                          __,
+                                                          ___,
+                                                        ) => Container(
+                                                          color: const Color(
+                                                            0xFF1A1A1A,
+                                                          ),
+                                                          child: const Icon(
+                                                            Icons.image,
+                                                            color:
+                                                                Colors.white38,
+                                                            size: 40,
+                                                          ),
+                                                        ),
+                                                  ))
+                                          : Container(
+                                              color: const Color(0xFF1A1A1A),
+                                            ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -744,12 +776,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               // usko bhi naye center wale pose se sync kar do
               if (_previewPose != null) {
                 _previewPose = _shootPoses[index];
+                _isGhostPreview = false;
               }
             });
           },
           onPoseTap: (pose) {
             setState(() {
               _previewPose = (_previewPose == pose) ? null : pose;
+              _isGhostPreview = false;
             });
           },
         ),
