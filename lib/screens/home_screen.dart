@@ -132,6 +132,43 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Future<void> _startScan() async {
     if (_isScanning) return;
     HapticFeedback.mediumImpact();
+
+    // ── STEP 1: SILENT PRE-CHECK ──
+    // Koi UI, koi animation, koi status text nahi dikhana — bas
+    // milliseconds mein pata karo ki person frame mein hai ya nahi.
+    setState(() {
+      _noPersonDetected = false;
+    });
+
+    ScanResult scanResult;
+    try {
+      scanResult = await DetectionService.analyze(_cameraController!);
+    } catch (e, stack) {
+      debugPrint('❌ DetectionService.analyze() failed: $e');
+      debugPrint('$stack');
+      scanResult = ScanResult.noPerson;
+    }
+
+    if (!mounted) return;
+
+    // ── STEP 2: PERSON NAHI MILA ──
+    // Scanning UI bilkul mat dikhao, seedha "No person detected" flash karo.
+    if (scanResult == ScanResult.noPerson) {
+      setState(() {
+        _isScanning = false;
+        _statusMessage = '';
+        _noPersonDetected = true;
+      });
+      HapticFeedback.lightImpact();
+
+      // chaho to auto-hide bhi kar sakte ho 2.5 sec baad
+      Future.delayed(const Duration(milliseconds: 2500), () {
+        if (mounted) setState(() => _noPersonDetected = false);
+      });
+      return;
+    }
+
+    // ── STEP 3: PERSON MIL GAYA — YAHAN SE NORMAL FLOW (jo already sahi hai) ──
     setState(() {
       _isScanning = true;
       _noPersonDetected = false;
@@ -148,39 +185,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       }
     }
 
-    // Turant "Scanning Environment..." dikhao aur usi ke saath actual
-    // detection chalao — koi fake wait nahi, ye asli kaam ho raha hai
     if (!mounted) return;
     await _statusFadeController.reverse();
     setState(() => _statusMessage = 'Scanning Environment...');
     _statusFadeController.forward(from: 0);
 
-    ScanResult scanResult;
-    try {
-      scanResult = await DetectionService.analyze(_cameraController!);
-    } catch (e, stack) {
-      // pehle silently noPerson maan liya jata tha — ab error print
-      // hoga taaki asli wajah pata chale (ML Kit setup issue waghera)
-      debugPrint('❌ DetectionService.analyze() failed: $e');
-      debugPrint('$stack');
-      scanResult = ScanResult.noPerson;
-    }
+    // Note: scanResult already mil chuka hai step 1 mein (person present),
+    // isliye DetectionService.analyze() ko dobara call nahi karna —
+    // bas thodi si polish delay taaki "Scanning Environment..." dikh sake.
+    await Future.delayed(const Duration(milliseconds: 500));
 
     if (!mounted) return;
 
-    // Person nahi mila -> turant ruk jao, aage ki fake animation
-    // messages chalane ki zaroorat nahi
-    if (scanResult == ScanResult.noPerson) {
-      setState(() {
-        _isScanning = false;
-        _statusMessage = '';
-        _noPersonDetected = true;
-      });
-      HapticFeedback.lightImpact();
-      return;
-    }
-
-    // Person mil gaya -> ab baaki polish messages dikha ke catalog kholo
     final messages = ['Detecting Subject...', 'Generating Pose Ideas...'];
     for (final msg in messages) {
       if (!mounted) return;
@@ -632,7 +648,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               // NO PERSON DETECTED
               if (_noPersonDetected && !_isScanning)
                 Positioned(
-                  bottom: bottomPad + 110,
+                  top: topPad + 70,
                   left: 0,
                   right: 0,
                   child: Center(
