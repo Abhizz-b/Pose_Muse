@@ -419,9 +419,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         );
                       },
                       child: _previewPose == null
-                          ? const SizedBox.expand(
-                              key: ValueKey('empty-preview'),
-                            )
+                          ? const SizedBox.expand(key: ValueKey('empty-preview'))
                           : Container(
                               key: ValueKey<String?>(_previewPose!.imagePath),
                               // koi dark tint nahi — camera background seedha
@@ -437,9 +435,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(18),
                                   child: _previewPose!.imagePath != null
-                                      ? (_previewPose!.imagePath!.startsWith(
-                                              '/',
-                                            )
+                                      ? (_previewPose!.imagePath!.startsWith('/')
                                             ? Image.file(
                                                 File(_previewPose!.imagePath!),
                                                 fit: BoxFit.contain,
@@ -483,10 +479,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
               // SHUTTER FLASH
               Positioned.fill(
-                child: AnimatedOpacity(
-                  opacity: _showFlash ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 80),
-                  child: Container(color: Colors.black),
+                child: IgnorePointer(
+                  // pure visual effect hai — kabhi bhi taps intercept
+                  // nahi karna chahiye (opacity 0 hone par bhi Flutter
+                  // mein AnimatedOpacity taps ko block nahi karta by
+                  // default, isliye explicit IgnorePointer zaroori hai)
+                  child: AnimatedOpacity(
+                    opacity: _showFlash ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 80),
+                    child: Container(color: Colors.black),
+                  ),
                 ),
               ),
 
