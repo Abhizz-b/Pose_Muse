@@ -93,6 +93,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       imageFormatGroup: ImageFormatGroup.nv21,
     );
     await _cameraController!.initialize();
+
+    // ── FIX (flash bug) ──
+    // camera plugin ka default FlashMode naye controller pe hamesha
+    // FlashMode.auto hota hai — chahe UI mein flash "off" hi kyun na
+    // dikh raha ho. Isi wajah se silent detection capture ya photo
+    // capture ke waqt kabhi kabhi flash apne aap fire ho jaata tha,
+    // bhale hi _flashOn false ho. Ab har naye controller pe hardware
+    // flash ko turant UI toggle (_flashOn) ke saath sync kar rahe
+    // hain — off by default, torch sirf tabhi jab user ne khud on
+    // kiya ho. Yeh flip-camera (jo naya controller banata hai) ke
+    // baad bhi apply hoga taaki flash setting reset na ho.
+    try {
+      await _cameraController!.setFlashMode(
+        _flashOn ? FlashMode.torch : FlashMode.off,
+      );
+    } catch (_) {
+      // kuch devices/emulators pe flash unsupported ho sakta hai —
+      // silently ignore, UI still shows correct toggle state.
+    }
+
     if (mounted) setState(() => _isInitialized = true);
   }
 
@@ -142,7 +162,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     ScanResult scanResult;
     try {
-      scanResult = await DetectionService.analyze(_cameraController!);
+      // ── FIX (freeze bug) ──
+      // Agar takePicture()/ML Kit ka native call kisi wajah se atak
+      // (hang) jaaye, pehle poori app hamesha ke liye freeze ho jaati
+      // thi kyunki UI us await ka wait kar rahi thi jo kabhi resolve
+      // nahi hota tha. Ab 6 second ka timeout hai — usse zyada lagे to
+      // hum khud noPerson maan lete hain aur UI turant respond karti
+      // hai, bhale hi root native issue abhi bhi background mein ho.
+      scanResult = await DetectionService.analyze(_cameraController!).timeout(
+        const Duration(seconds: 6),
+        onTimeout: () {
+          debugPrint(
+            '⏱️ DetectionService.analyze() timed out after 6s — treating as noPerson',
+          );
+          return ScanResult.noPerson;
+        },
+      );
     } catch (e, stack) {
       debugPrint('❌ DetectionService.analyze() failed: $e');
       debugPrint('$stack');
