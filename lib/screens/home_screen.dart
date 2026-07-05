@@ -16,13 +16,7 @@ import 'settings_screen.dart';
 import 'dart:io';
 import 'package:image/image.dart' as img;
 
-// ── NAYA (camera stuck/frozen preview fix) ──
-// Yeh RouteObserver HomeScreen ko batata hai jab koi naya screen upar aata
-// hai (jaise catalog/AI-picks) aur jab wapas is screen pe aate hain. Isko
-// yahan top-level declare kiya hai taaki koi bhi file import kar sake.
-// IMPORTANT: iska kaam karne ke liye `main.dart` ki MaterialApp mein isko
-// navigatorObservers list mein register karna zaroori hai — neeche
-// instructions mein bataya hai.
+// route observer (frozen preview fix)
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
 class HomeScreen extends StatefulWidget {
@@ -37,8 +31,7 @@ class _HomeScreenState extends State<HomeScreen>
   List<CameraDescription> _cameras = [];
   bool _isInitialized = false;
   bool _isScanning = false;
-  bool _isDetecting =
-      false; // naya — pre-check phase ke dauraan double-tap रोकने ke liye
+  bool _isDetecting = false; // blocks double-tap
   bool _showFlash = false;
   bool _isFrontCamera = false;
   bool _flashOn = false;
@@ -46,49 +39,22 @@ class _HomeScreenState extends State<HomeScreen>
   int _timerSeconds = 0;
   String _statusMessage = '';
   bool _noPersonDetected = false;
-  bool _screenDetected = false; // naya — screen/photo/video pakda jaye to true
+  bool _screenDetected = false; // screen/photo detected
   List<PoseModel> _shootPoses = [];
   int _wheelCenterIndex = 0;
   late PageController _wheelController;
   PoseModel? _previewPose;
   bool _isGhostPreview = false;
 
-  // ── NAYA: top/bottom bar ki actual rendered height measure karne ke liye
-  // (fixed bottom-bar-height fix aur photo-crop fix, dono ke liye zaroori)
+  // measured bar heights
   final GlobalKey _topBarKey = GlobalKey();
   final GlobalKey _bottomBarKey = GlobalKey();
 
-  // ── NAYA (FOV/zoom fix) ──
-  // Pehle camera preview Positioned.fill tha — matlab BoxFit.cover ka
-  // calculation POORI screen height ke against ho raha tha, jabki actual
-  // visible strip (top bar aur bottom bar ke beech wala hissa) usse kaafi
-  // chhoti hoti hai. Jitni zyada height cover karni padti hai utna zyada
-  // camera ko horizontally crop karna padta hai — isi wajah se preview
-  // "zoomed in" dikh raha tha stock camera app ke comparison mein.
-  // Ab hum top/bottom bar ki actual measured height store kar rahe hain
-  // aur preview ko sirf us beech wale visible strip mein constrain kar
-  // rahe hain, taaki cover-fit calculation sahi (chhoti) height ke against
-  // ho aur crop kam ho — jisse FOV wide dikhega, jaisa stock camera mein.
-  //
-  // Initial fallback values approximate hain (pehle frame ke liye, jab tak
-  // actual measurement nahi aa jaata) taaki first frame se hi reasonably
-  // accurate dikhe aur koi visible "jump" na ho.
+  // FOV/zoom fix defaults
   double _topBarHeight = 90;
   double _bottomBarHeight = 220;
 
-  // ── NAYA (extra zoom-out control) ──
-  // BoxFit.cover hamesha poora visible area fill karta hai bina kisi gap
-  // ke — jitna bhi crop chahiye utna karega. Aur wide FOV chahiye to thoda
-  // letterbox (halka gap, edges pe) allow karna padta hai. Yeh factor
-  // "cover" scale ko thoda kam kar deta hai (matlab thoda kam zoom-in),
-  // jisse crop kam hota hai aur FOV wide dikhta hai — trade-off yeh hai ki
-  // preview ab full-bleed edge-to-edge nahi rahega, chhoti si black strip
-  // dikh sakti hai (bar ke color se blend karke minimal rakha hai).
-  //
-  // 1.0 = purana behavior (full cover, zyada crop/zoom).
-  // Jitna chhota (e.g. 0.85), utna zyada zoom-out — lekin bahut chhota
-  // karne se letterbox zyada visible hone lagega. Scale ko "contain" scale
-  // se neeche kabhi nahi jaane dete, taaki excessive gap na aaye.
+  // zoom-out factor
   static const double _previewZoomOutFactor = 0.78;
 
   late AnimationController _scanLineController;
@@ -124,13 +90,7 @@ class _HomeScreenState extends State<HomeScreen>
     _initCamera();
   }
 
-  // ── NAYA (camera stuck/frozen preview fix) ──
-  // Jab HomeScreen ke upar koi naya route push hota hai (jaise catalog/
-  // AI-picks screen), yeh screen dispose nahi hoti — bas background mein
-  // chali jaati hai. Isi wajah se camera preview ka texture "stuck" ho
-  // jaata hai jab hum wapas is screen pe aate hain, kyunki koi resume
-  // trigger nahi tha. RouteObserver ke through hum is screen ko subscribe
-  // karte hain taaki didPushNext/didPopNext callbacks milein.
+  // subscribe route observer
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -140,35 +100,27 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  // Is screen se aage kisi doosre screen pe navigate hua (jaise catalog
-  // ya AI-picks) — camera preview ko pause kar do, taaki wo cover hote
-  // waqt "stuck frame" capture na kare aur wapas aane pe fresh resume ho
+  // pause preview on nav
   @override
   void didPushNext() {
     try {
       _cameraController?.pausePreview();
     } catch (_) {
-      // controller already disposed/unavailable ho sakta hai — ignore
+      // ignore
     }
   }
 
-  // Wapas is screen pe aaye (upar wala route pop hua) — camera preview
-  // ko resume karo taaki live feed dobara chalne lage, frozen frame na
-  // dikhe
+  // resume preview on back
   @override
   void didPopNext() {
     try {
       _cameraController?.resumePreview();
     } catch (_) {
-      // controller already disposed/unavailable ho sakta hai — ignore
+      // ignore
     }
   }
 
-  // ── NAYA (FOV/zoom fix) ──
-  // Top/bottom bar ki actual rendered height measure karke state update
-  // karta hai, taaki camera preview strip sahi size mein constrain ho.
-  // Sirf tabhi setState karta hai jab height mein real farak ho (0.5px se
-  // zyada), taaki unnecessary rebuilds na ho.
+  // measure bar heights
   void _measureBarHeights() {
     final topBox = _topBarKey.currentContext?.findRenderObject() as RenderBox?;
     final bottomBox =
@@ -208,23 +160,13 @@ class _HomeScreenState extends State<HomeScreen>
     );
     await _cameraController!.initialize();
 
-    // ── FIX (flash bug) ──
-    // camera plugin ka default FlashMode naye controller pe hamesha
-    // FlashMode.auto hota hai — chahe UI mein flash "off" hi kyun na
-    // dikh raha ho. Isi wajah se silent detection capture ya photo
-    // capture ke waqt kabhi kabhi flash apne aap fire ho jaata tha,
-    // bhale hi _flashOn false ho. Ab har naye controller pe hardware
-    // flash ko turant UI toggle (_flashOn) ke saath sync kar rahe
-    // hain — off by default, torch sirf tabhi jab user ne khud on
-    // kiya ho. Yeh flip-camera (jo naya controller banata hai) ke
-    // baad bhi apply hoga taaki flash setting reset na ho.
+    // sync flash state
     try {
       await _cameraController!.setFlashMode(
         _flashOn ? FlashMode.torch : FlashMode.off,
       );
     } catch (_) {
-      // kuch devices/emulators pe flash unsupported ho sakta hai —
-      // silently ignore, UI still shows correct toggle state.
+      // unsupported device
     }
 
     if (mounted) setState(() => _isInitialized = true);
@@ -275,10 +217,7 @@ class _HomeScreenState extends State<HomeScreen>
 
     ScanResult scanResult;
     try {
-      // FIX: analyze() ki jagah ab analyzeLiveness() call ho raha hai —
-      // ye 2 frames leta hai gyroscope ke saath, taaki screen/photo/video
-      // ko real person se differentiate kiya ja sake. Isliye timeout bhi
-      // 6s se 8s kar diya (2 frames + gyro overhead thoda zyada time leta hai).
+      // liveness check
       scanResult = await DetectionService.analyzeLiveness(_cameraController!)
           .timeout(
             const Duration(seconds: 8),
@@ -310,7 +249,7 @@ class _HomeScreenState extends State<HomeScreen>
       return;
     }
 
-    // ── NAYA CASE: flat screen/photo/video detect hua ──
+    // screen detected case
     if (scanResult == ScanResult.screenDetected) {
       setState(() {
         _isScanning = false;
@@ -456,24 +395,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  // ── NAYA (crop fix) ──
-  // Preview mein user sirf wahi hissa dekhta hai jo BoxFit.cover ke baad
-  // screen pe fit hota hai, aur top/bottom bars jo hissa cover karte hain
-  // wo bhi visually hidden rehta hai. Lekin takePicture() hamesha poora
-  // sensor frame deta hai — bina kisi crop ke. Ye function un dono cheezon
-  // (cover-crop + bar-overlap) ko replicate karke final saved photo ko
-  // exactly wahi area tak crop karta hai jo user ne screen pe dekha tha.
-  //
-  // NOTE (FOV fix ke baad): ab live preview khud hi sirf top/bottom bar
-  // ke beech wale strip mein render hota hai (poori screen mein nahi),
-  // isliye "extra top/bottom bar overlap" wala crop ab in-preview hi ho
-  // chuka hota hai. Neeche wala calculation ab bhi सही kaam karega kyunki
-  // ye seedha topBarHeight/bottomBarHeight measure karta hai — displayed
-  // preview area humesha unhi ke beech wala strip hota hai, chahe wo
-  // Positioned.fill ho ya constrained Positioned. Fark sirf itna hai ki
-  // ab cover-fit calculation bhi usi chhoti height ke against ho raha hai,
-  // to extraH/extraW automatically kam honge — jo sahi hai (kam crop =
-  // kam zoom, jo user chahta tha).
+  // crop to visible area
   Future<String> _cropToVisibleArea(String originalPath) async {
     try {
       final screenSize = MediaQuery.of(context).size;
@@ -485,48 +407,34 @@ class _HomeScreenState extends State<HomeScreen>
       final topBarHeight = topBarBox?.size.height ?? 0.0;
       final bottomBarHeight = bottomBarBox?.size.height ?? 0.0;
 
-      // Preview ab sirf visible strip (screenHeight - topBarHeight -
-      // bottomBarHeight) mein render hota hai, isliye cover-fit
-      // calculation bhi usi strip ke against karna hai — poori
-      // screenSize.height ke against nahi.
+      // visible strip height
       final visibleStripHeight =
           (screenSize.height - topBarHeight - bottomBarHeight).clamp(
             1.0,
             screenSize.height,
           );
 
-      // build() mein camera preview jis SizedBox mein wrap hota hai,
-      // uska hi width/height yahan use kar rahe hain (previewSize swapped,
-      // aur zoom-out factor ke hisaab se inflate kiya hua — preview widget
-      // wale calculation se exactly match karne ke liye)
+      // matches preview box calc
       final previewSize = _cameraController!.value.previewSize!;
       final boxW = previewSize.height / _previewZoomOutFactor;
       final boxH = previewSize.width / _previewZoomOutFactor;
 
       final scaleW = screenSize.width / boxW;
       final scaleH = visibleStripHeight / boxH;
-      // NAYA: boxW/boxH already zoom-out factor se inflate ho chuke hain
-      // (upar), isliye yahan seedha cover-scale use karna hai — FittedBox
-      // bhi exactly yahi karta hai apne andar, koi extra multiply/clamp
-      // nahi chahiye (warna factor do baar apply ho jayega, galat crop).
+      // cover-scale, no double factor
       final scale = scaleW > scaleH ? scaleW : scaleH;
 
       final displayedW = boxW * scale;
       final displayedH = boxH * scale;
-      final extraW =
-          displayedW - screenSize.width; // >0 => left/right crop hota hai
-      final extraH =
-          displayedH -
-          visibleStripHeight; // >0 => top/bottom crop hota hai (strip ke andar)
+      final extraW = displayedW - screenSize.width; // side crop
+      final extraH = displayedH - visibleStripHeight; // top/bottom crop
 
       final fracLeftRight = extraW > 0 ? (extraW / 2) / scale / boxW : 0.0;
       final fracTopBottomFromCover = extraH > 0
           ? (extraH / 2) / scale / boxH
           : 0.0;
 
-      // Bar overlap ab preview area ke bahar hai (Positioned constraint
-      // ki wajah se), isliye bar-height wala extra crop add nahi karna —
-      // sirf cover-crop ka hissa hi lena hai.
+      // no extra bar overlap
       final totalTopFrac = fracTopBottomFromCover;
       final totalBottomFrac = fracTopBottomFromCover;
       final totalLeftFrac = fracLeftRight;
@@ -536,8 +444,7 @@ class _HomeScreenState extends State<HomeScreen>
       var decoded = img.decodeImage(bytes);
       if (decoded == null) return originalPath;
 
-      // EXIF orientation ko bake karo — varna width/height galat axis pe
-      // aa sakte hain aur crop ulta lag jaayega
+      // bake EXIF orientation
       decoded = img.bakeOrientation(decoded);
 
       final imgW = decoded.width;
@@ -559,23 +466,15 @@ class _HomeScreenState extends State<HomeScreen>
         height: newH,
       );
 
-      // ── NAYA: final standard-ratio crop ──
-      // Upar wala crop sirf bars/cover-crop hata raha tha, jisse ek
-      // "random" ratio bach jaata tha (device ke hisaab se alag-alag).
-      // Instagram Story jaisi jagah upload karte waqt is wajah se
-      // Instagram khud zoom/pad kar deta tha kyunki photo kisi standard
-      // shape mein nahi thi. Ab isse Android ke normal camera jaise
-      // classic 4:3 (portrait mein 3:4 — width:height) ratio mein
-      // hamesha center-crop kar rahe hain, taaki output predictable aur
-      // "standard" lage, chahe device kuch bhi ho.
-      const targetRatio = 3 / 4; // width / height, portrait 4:3
+      // final ratio crop
+      const targetRatio = 3 / 4; // portrait 4:3
       final curW = cropped.width;
       final curH = cropped.height;
       final curRatio = curW / curH;
 
       img.Image finalImage;
       if (curRatio > targetRatio) {
-        // photo chaudi zyada hai apni height ke hisaab se -> width crop karo
+        // crop width
         final newFinalW = (curH * targetRatio).round().clamp(1, curW);
         final xOffset = ((curW - newFinalW) / 2).round().clamp(
           0,
@@ -589,7 +488,7 @@ class _HomeScreenState extends State<HomeScreen>
           height: curH,
         );
       } else {
-        // photo lambi zyada hai apni width ke hisaab se -> height crop karo
+        // crop height
         final newFinalH = (curW / targetRatio).round().clamp(1, curH);
         final yOffset = ((curH - newFinalH) / 2).round().clamp(
           0,
@@ -610,7 +509,7 @@ class _HomeScreenState extends State<HomeScreen>
     } catch (e, stack) {
       debugPrint('❌ _cropToVisibleArea failed: $e');
       debugPrint('$stack');
-      // crop fail ho jaaye to bhi original photo to bach jaani chahiye
+      // keep original on fail
       return originalPath;
     }
   }
@@ -628,17 +527,13 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    // ── NAYA (FOV/zoom fix) ──
-    // Har build ke baad top/bottom bar ki actual height measure kar lete
-    // hain (post-frame, taaki RenderBox available ho). Yeh bar heights
-    // change hone pe (font-scale, safe-area, orientation waghera) bhi
-    // apne aap update ho jaayega.
+    // measure bars post-frame
     WidgetsBinding.instance.addPostFrameCallback((_) => _measureBarHeights());
 
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeNotifier,
       builder: (context, themeMode, _) {
-        // system theme ke liye device brightness check
+        // system brightness check
         final brightness = themeMode == ThemeMode.system
             ? MediaQuery.of(context).platformBrightness
             : (themeMode == ThemeMode.dark
@@ -646,7 +541,7 @@ class _HomeScreenState extends State<HomeScreen>
                   : Brightness.light);
         final isDark = brightness == Brightness.dark;
 
-        // theme-aware colors
+        // theme colors
         final barBg = isDark ? Colors.black : const Color(0xFFF2F0F7);
         final iconBg = isDark
             ? Colors.black.withOpacity(0.5)
@@ -692,14 +587,7 @@ class _HomeScreenState extends State<HomeScreen>
           extendBodyBehindAppBar: true,
           body: Stack(
             children: [
-              // FULL SCREEN CAMERA
-              // ── NAYA (FOV/zoom fix) ──
-              // Pehle Positioned.fill tha (poori screen height ke against
-              // cover-fit hota tha, jisse zyada crop/zoom hota tha). Ab
-              // preview sirf top/bottom bar ke beech wale visible strip
-              // mein constrain hai — cover-fit calculation ab sirf usi
-              // chhoti height ke against hota hai, isliye crop kam hoga
-              // aur field-of-view stock camera app jaisa wide dikhega.
+              // full screen camera
               if (_isInitialized && _cameraController != null)
                 Positioned(
                   top: _topBarHeight,
@@ -707,22 +595,13 @@ class _HomeScreenState extends State<HomeScreen>
                   left: 0,
                   right: 0,
                   child: Container(
-                    // agar zoom-out ki wajah se koi chhota gap bache to
-                    // wo is black background se blend ho jayega
+                    // blends gap w/ bg
                     color: Colors.black,
                     child: ClipRect(
                       child: FittedBox(
                         fit: BoxFit.cover,
                         child: SizedBox(
-                          // NAYA (safe zoom-out fix): size ko thoda inflate
-                          // kiya hai (dono dimensions equally /factor se) —
-                          // aspect ratio bilkul same rehta hai (dono equally
-                          // badhte hain), isliye koi distortion nahi hoga.
-                          // Bas FittedBox ka apna cover-scale calculation
-                          // is bade "virtual" size ke against thoda kam
-                          // ho jayega — matlab kam zoom/crop, wider FOV.
-                          // factor 1.0 = purana zoomed-in behavior (koi
-                          // inflation nahi).
+                          // inflated size, safe zoom-out
                           width:
                               _cameraController!.value.previewSize!.height /
                               _previewZoomOutFactor,
@@ -748,7 +627,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
 
-              // SCAN GRID OVERLAY
+              // scan grid overlay
               if (_isScanning)
                 Positioned.fill(
                   child: AnimatedBuilder(
@@ -762,26 +641,25 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
 
-              // CORNER BRACKETS
+              // corner brackets
               Positioned.fill(
                 child: CustomPaint(painter: _CornerPainter(color: _orange)),
               ),
 
-              // POSE PREVIEW OVERLAY - carousel se tap kiya hua pose bada dikhta hai
+              // pose preview overlay
               Positioned.fill(
                 child: IgnorePointer(
-                  // jab preview band hai to ye layer camera taps ko block
-                  // na kare
+                  // don't block camera taps
                   ignoring: _previewPose == null,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () {
                       setState(() {
                         if (!_isGhostPreview) {
-                          // pehla tap: solid se ghost/transparent mode mein
+                          // solid -> ghost mode
                           _isGhostPreview = true;
                         } else {
-                          // dusra tap: poori tarah band kar do
+                          // close preview
                           _previewPose = null;
                           _isGhostPreview = false;
                         }
@@ -789,9 +667,7 @@ class _HomeScreenState extends State<HomeScreen>
                     },
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 280),
-                      // khulte waqt halka bounce ke saath pop-in,
-                      // band hote waqt clean aur fast shrink — koi
-                      // slide/diagonal motion nahi, sirf scale+fade
+                      // scale+fade transition
                       switchInCurve: Curves.easeOutBack,
                       switchOutCurve: Curves.easeIn,
                       transitionBuilder: (child, animation) {
@@ -812,10 +688,7 @@ class _HomeScreenState extends State<HomeScreen>
                             )
                           : Container(
                               key: ValueKey<String?>(_previewPose!.imagePath),
-                              // koi dark tint nahi — camera background seedha
-                              // peeche se dikhna chahiye, jaisa reference mein hai
-                              // color transparent hai (dark tint ke liye nahi,
-                              // sirf poora area tap-detectable banane ke liye)
+                              // transparent, tap area only
                               color: Colors.transparent,
                               padding: EdgeInsets.only(
                                 top: topPad + 55,
@@ -889,13 +762,10 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
 
-              // SHUTTER FLASH
+              // shutter flash
               Positioned.fill(
                 child: IgnorePointer(
-                  // pure visual effect hai — kabhi bhi taps intercept
-                  // nahi karna chahiye (opacity 0 hone par bhi Flutter
-                  // mein AnimatedOpacity taps ko block nahi karta by
-                  // default, isliye explicit IgnorePointer zaroori hai)
+                  // visual only, no taps
                   child: AnimatedOpacity(
                     opacity: _showFlash ? 1.0 : 0.0,
                     duration: const Duration(milliseconds: 80),
@@ -904,7 +774,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
 
-              // TOP BAR
+              // top bar
               Positioned(
                 top: 0,
                 left: 0,
@@ -974,7 +844,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
 
-              // SCANNING STATUS
+              // scanning status
               if (_isScanning && _statusMessage.isNotEmpty)
                 Positioned(
                   bottom: bottomPad + 100,
@@ -997,7 +867,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
 
-              // NO PERSON DETECTED
+              // no person detected
               if (_noPersonDetected && !_isScanning)
                 Positioned(
                   top: topPad + 70,
@@ -1039,7 +909,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
 
-              // SCREEN / PHOTO / VIDEO DETECTED (fake person)
+              // screen detected
               if (_screenDetected && !_isScanning)
                 Positioned(
                   top: topPad + 70,
@@ -1080,7 +950,7 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                 ),
-              // BOTTOM BAR
+              // bottom bar
               Positioned(
                 bottom: 0,
                 left: 0,
@@ -1094,16 +964,7 @@ class _HomeScreenState extends State<HomeScreen>
                     right: 20,
                     bottom: bottomPad + 10,
                   ),
-                  // ── FIX (bottom bar shrink bug, no hardcoded height) ──
-                  // Pehle isme height:190 hardcoded thi jo kuch devices pe
-                  // overflow kar rahi thi (font-scale/screen-size farak ki
-                  // wajah se). Ab ek invisible "sizer" copy (Opacity 0 +
-                  // IgnorePointer) hamesha sabse tall content (empty detect
-                  // state) render karta hai sirf space reserve karne ke liye
-                  // — uske actual measured size ke hisaab se Stack apni height
-                  // khud decide karta hai. Isliye kabhi overflow nahi hoga,
-                  // chahe kisi bhi device/font-size pe chale, aur black bg
-                  // kabhi bhi content ke hisaab se shrink nahi hogi.
+                  // no hardcoded height
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
@@ -1235,8 +1096,7 @@ class _HomeScreenState extends State<HomeScreen>
           onCenterChanged: (index) {
             setState(() {
               _wheelCenterIndex = index;
-              // agar bada preview already khula hai, scroll karte hi
-              // usko bhi naye center wale pose se sync kar do
+              // sync big preview too
               if (_previewPose != null) {
                 _previewPose = _shootPoses[index];
                 _isGhostPreview = false;
@@ -1604,13 +1464,7 @@ class _ShutterBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ── FIX (light theme shutter button) ──
-    // Pehle inner circle hamesha Colors.black tha, chahe theme kuch bhi
-    // ho — light theme mein bhi black hi rehta tha jo baaki UI (off-white
-    // bars) ke saath mismatch karta tha. Ab light theme mein inner circle
-    // ko bar-background jaisa halka off-white rakha hai (halke border ke
-    // saath taaki edge define ho), aur dark theme mein purana black
-    // behavior bilkul same rehta hai.
+    // theme-aware inner circle
     final innerIdleColor = isDark ? Colors.black : const Color(0xFFF2F0F7);
     final innerBorder = isDark
         ? null
@@ -1787,13 +1641,7 @@ class _PoseWheelCarouselState extends State<_PoseWheelCarousel> {
 
   @override
   Widget build(BuildContext context) {
-    // ── FIX (light theme carousel contrast) ──
-    // Pehle yeh hamesha Color(0xFF1A1A1A) (dark charcoal) tha, chahe
-    // theme light ho ya dark — isi wajah se light theme mein poses ke
-    // peeche ek ajeeb black box dikhta tha. Ab theme ke hisaab se ek
-    // halka off-white/lavender-tinted background use hota hai jo light
-    // theme ke baaki UI (barBg == 0xFFF2F0F7) se match karta hai, aur
-    // dark theme mein purana behavior bilkul same rehta hai.
+    // theme-aware tile bg
     final tileBg = widget.isDark
         ? const Color(0xFF1A1A1A)
         : const Color(0xFFE7E4EF);
@@ -1817,8 +1665,7 @@ class _PoseWheelCarouselState extends State<_PoseWheelCarousel> {
           final isBeingPreviewed = widget.poses[index] == widget.previewedPose;
 
           if (isBeingPreviewed) {
-            // ye pose abhi bada dikh raha hai -> carousel mein blank
-            // chhod do taaki duplicate na dikhe, spacing same rahegi
+            // leave gap, no dupe
             return const SizedBox(width: 64, height: 78);
           }
 
@@ -1826,10 +1673,10 @@ class _PoseWheelCarouselState extends State<_PoseWheelCarousel> {
             onTap: () {
               final isAlreadyCentered = index == _page.round();
               if (isAlreadyCentered) {
-                // pehle se center mein hai -> seedha bada preview dikhao
+                // already centered, show preview
                 widget.onPoseTap?.call(widget.poses[index]);
               } else {
-                // pehle center mein le aao, preview baad mein
+                // center first, then preview
                 widget.controller.animateToPage(
                   index,
                   duration: const Duration(milliseconds: 450),
@@ -1855,16 +1702,31 @@ class _PoseWheelCarouselState extends State<_PoseWheelCarousel> {
                         margin: const EdgeInsets.symmetric(horizontal: 5),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
+                          color: widget.isDark ? Colors.transparent : tileBg,
                           boxShadow: absDiff < 0.3
-                              ? [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(
-                                      widget.isDark ? 0.35 : 0.15,
-                                    ),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ]
+                              ? (widget.isDark
+                                    ? [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.35),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ]
+                                    // soft ambient + contact shadow
+                                    : [
+                                        BoxShadow(
+                                          color: const Color(0x14000000),
+                                          blurRadius: 14,
+                                          spreadRadius: -4,
+                                          offset: const Offset(0, 6),
+                                        ),
+                                        BoxShadow(
+                                          color: const Color(0x0F000000),
+                                          blurRadius: 3,
+                                          spreadRadius: -1,
+                                          offset: const Offset(0, 1),
+                                        ),
+                                      ])
                               : [],
                         ),
                         child: ClipRRect(
