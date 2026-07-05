@@ -97,8 +97,6 @@ class DetectionService {
     DateTime? lastTick;
 
     try {
-      // Gyroscope se rotation integrate karna shuru — background mein
-      // chalega jab tak dono frames capture nahi ho jaate
       gyroSub = gyroscopeEventStream().listen((event) {
         final now = DateTime.now();
         if (lastTick != null) {
@@ -130,7 +128,7 @@ class DetectionService {
 
       if (!hasCoreEvidence1) return ScanResult.noPerson;
 
-      // ── WAIT (gyroscope is dauraan record karta rahega) ──
+      // ── WAIT ──
       await Future.delayed(const Duration(milliseconds: _liveGapMs));
 
       // ── FRAME 2 ──
@@ -142,11 +140,31 @@ class DetectionService {
       await gyroSub.cancel();
       gyroSub = null;
 
-      if (poses2.isNotEmpty) {
-        final landmarks2 = poses2.first.landmarks;
-        bool visible2(PoseLandmarkType t) =>
-            landmarks2[t] != null && landmarks2[t]!.likelihood > 0.6;
+      // FIX: frame2 mein bhi person confirm hona zaroori hai — warna
+      // ghost/noise wale false-positive frame1 detection ki wajah se
+      // poora scan aage badh jaata tha bina real confirmation ke, aur
+      // "No person detected" msg kabhi nahi dikhta tha.
+      if (poses2.isEmpty) return ScanResult.noPerson;
 
+      final landmarks2 = poses2.first.landmarks;
+      bool visible2(PoseLandmarkType t) =>
+          landmarks2[t] != null && landmarks2[t]!.likelihood > 0.6;
+
+      final hasCoreEvidence2 =
+          visible2(PoseLandmarkType.nose) ||
+          (visible2(PoseLandmarkType.leftShoulder) &&
+              visible2(PoseLandmarkType.rightShoulder));
+
+      if (!hasCoreEvidence2) return ScanResult.noPerson;
+
+      // FIX: selfie/front camera mein parallax check SKIP kar rahe hain.
+      // Gyroscope sirf rotation measure karta hai, translation nahi —
+      // aur parallax sirf translation se banta hai. Selfie lete waqt
+      // phone zyada tilt/rotate hota hai, translate kam, isliye real
+      // chehra bhi "flat/screen" jaisa dikh raha tha (false positive).
+      // Face landmarks bhi ek hi depth range mein hote hain isliye ye
+      // check yahan waise bhi unreliable hai.
+      if (!isFront) {
         const candidates = [
           PoseLandmarkType.nose,
           PoseLandmarkType.leftShoulder,
@@ -186,9 +204,6 @@ class DetectionService {
               '🕵️ Liveness check — gyroDelta:$gyroDelta variance:$variance mean:$mean',
             );
 
-            // Phone move hua (gyroDelta significant) lekin sab landmarks
-            // ek hi rate se move hue (variance bahut kam) -> depth ka
-            // koi fark nahi -> flat surface (screen/photo/video)
             if (variance < _planarVarianceThreshold) {
               return ScanResult.screenDetected;
             }
