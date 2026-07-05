@@ -16,13 +16,23 @@ import 'settings_screen.dart';
 import 'dart:io';
 import 'package:image/image.dart' as img;
 
+// ── NAYA (camera stuck/frozen preview fix) ──
+// Yeh RouteObserver HomeScreen ko batata hai jab koi naya screen upar aata
+// hai (jaise catalog/AI-picks) aur jab wapas is screen pe aate hain. Isko
+// yahan top-level declare kiya hai taaki koi bhi file import kar sake.
+// IMPORTANT: iska kaam karne ke liye `main.dart` ki MaterialApp mein isko
+// navigatorObservers list mein register karna zaroori hai — neeche
+// instructions mein bataya hai.
+final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with TickerProviderStateMixin, RouteAware {
   CameraController? _cameraController;
   List<CameraDescription> _cameras = [];
   bool _isInitialized = false;
@@ -112,6 +122,46 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
     _wheelController = PageController(viewportFraction: 0.32);
     _initCamera();
+  }
+
+  // ── NAYA (camera stuck/frozen preview fix) ──
+  // Jab HomeScreen ke upar koi naya route push hota hai (jaise catalog/
+  // AI-picks screen), yeh screen dispose nahi hoti — bas background mein
+  // chali jaati hai. Isi wajah se camera preview ka texture "stuck" ho
+  // jaata hai jab hum wapas is screen pe aate hain, kyunki koi resume
+  // trigger nahi tha. RouteObserver ke through hum is screen ko subscribe
+  // karte hain taaki didPushNext/didPopNext callbacks milein.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  // Is screen se aage kisi doosre screen pe navigate hua (jaise catalog
+  // ya AI-picks) — camera preview ko pause kar do, taaki wo cover hote
+  // waqt "stuck frame" capture na kare aur wapas aane pe fresh resume ho
+  @override
+  void didPushNext() {
+    try {
+      _cameraController?.pausePreview();
+    } catch (_) {
+      // controller already disposed/unavailable ho sakta hai — ignore
+    }
+  }
+
+  // Wapas is screen pe aaye (upar wala route pop hua) — camera preview
+  // ko resume karo taaki live feed dobara chalne lage, frozen frame na
+  // dikhe
+  @override
+  void didPopNext() {
+    try {
+      _cameraController?.resumePreview();
+    } catch (_) {
+      // controller already disposed/unavailable ho sakta hai — ignore
+    }
   }
 
   // ── NAYA (FOV/zoom fix) ──
@@ -567,6 +617,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     _cameraController?.dispose();
     _wheelController.dispose();
     _scanLineController.dispose();
