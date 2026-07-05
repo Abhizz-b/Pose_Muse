@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'settings_screen.dart';
 import 'dart:io';
+import 'package:image/image.dart' as img;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -41,6 +42,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late PageController _wheelController;
   PoseModel? _previewPose;
   bool _isGhostPreview = false;
+
+  // ── NAYA: top/bottom bar ki actual rendered height measure karne ke liye
+  // (fixed bottom-bar-height fix aur photo-crop fix, dono ke liye zaroori)
+  final GlobalKey _topBarKey = GlobalKey();
+  final GlobalKey _bottomBarKey = GlobalKey();
 
   late AnimationController _scanLineController;
   late Animation<double> _scanLineAnim;
@@ -334,13 +340,100 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     try {
       final XFile file = await _cameraController!.takePicture();
-      await PhotoStorageService.savePhoto(file.path);
+      final finalPath = await _cropToVisibleArea(file.path);
+      await PhotoStorageService.savePhoto(finalPath);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Failed to capture photo: $e')));
       }
+    }
+  }
+
+  // ── NAYA (crop fix) ──
+  // Preview mein user sirf wahi hissa dekhta hai jo BoxFit.cover ke baad
+  // screen pe fit hota hai, aur top/bottom bars jo hissa cover karte hain
+  // wo bhi visually hidden rehta hai. Lekin takePicture() hamesha poora
+  // sensor frame deta hai — bina kisi crop ke. Ye function un dono cheezon
+  // (cover-crop + bar-overlap) ko replicate karke final saved photo ko
+  // exactly wahi area tak crop karta hai jo user ne screen pe dekha tha.
+  Future<String> _cropToVisibleArea(String originalPath) async {
+    try {
+      final screenSize = MediaQuery.of(context).size;
+
+      final topBarBox =
+          _topBarKey.currentContext?.findRenderObject() as RenderBox?;
+      final bottomBarBox =
+          _bottomBarKey.currentContext?.findRenderObject() as RenderBox?;
+      final topBarHeight = topBarBox?.size.height ?? 0.0;
+      final bottomBarHeight = bottomBarBox?.size.height ?? 0.0;
+
+      // build() mein camera preview jis SizedBox mein wrap hota hai,
+      // uska hi width/height yahan use kar rahe hain (previewSize swapped)
+      final previewSize = _cameraController!.value.previewSize!;
+      final boxW = previewSize.height;
+      final boxH = previewSize.width;
+
+      final scaleW = screenSize.width / boxW;
+      final scaleH = screenSize.height / boxH;
+      final scale = scaleW > scaleH ? scaleW : scaleH;
+
+      final displayedW = boxW * scale;
+      final displayedH = boxH * scale;
+      final extraW =
+          displayedW - screenSize.width; // >0 => left/right crop hota hai
+      final extraH =
+          displayedH - screenSize.height; // >0 => top/bottom crop hota hai
+
+      final fracLeftRight = extraW > 0 ? (extraW / 2) / scale / boxW : 0.0;
+      final fracTopBottomFromCover = extraH > 0
+          ? (extraH / 2) / scale / boxH
+          : 0.0;
+
+      final fracTopBar = (topBarHeight / scale) / boxH;
+      final fracBottomBar = (bottomBarHeight / scale) / boxH;
+
+      final totalTopFrac = fracTopBottomFromCover + fracTopBar;
+      final totalBottomFrac = fracTopBottomFromCover + fracBottomBar;
+      final totalLeftFrac = fracLeftRight;
+      final totalRightFrac = fracLeftRight;
+
+      final bytes = await File(originalPath).readAsBytes();
+      var decoded = img.decodeImage(bytes);
+      if (decoded == null) return originalPath;
+
+      // EXIF orientation ko bake karo — varna width/height galat axis pe
+      // aa sakte hain aur crop ulta lag jaayega
+      decoded = img.bakeOrientation(decoded);
+
+      final imgW = decoded.width;
+      final imgH = decoded.height;
+
+      final cropLeft = (imgW * totalLeftFrac).round().clamp(0, imgW - 1);
+      final cropRight = (imgW * totalRightFrac).round().clamp(0, imgW - 1);
+      final cropTop = (imgH * totalTopFrac).round().clamp(0, imgH - 1);
+      final cropBottom = (imgH * totalBottomFrac).round().clamp(0, imgH - 1);
+
+      final newW = (imgW - cropLeft - cropRight).clamp(1, imgW);
+      final newH = (imgH - cropTop - cropBottom).clamp(1, imgH);
+
+      final cropped = img.copyCrop(
+        decoded,
+        x: cropLeft,
+        y: cropTop,
+        width: newW,
+        height: newH,
+      );
+
+      final croppedBytes = img.encodeJpg(cropped, quality: 92);
+      await File(originalPath).writeAsBytes(croppedBytes);
+      return originalPath;
+    } catch (e, stack) {
+      debugPrint('❌ _cropToVisibleArea failed: $e');
+      debugPrint('$stack');
+      // crop fail ho jaaye to bhi original photo to bach jaani chahiye
+      return originalPath;
     }
   }
 
@@ -600,6 +693,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 left: 0,
                 right: 0,
                 child: Container(
+                  key: _topBarKey,
                   color: barBg,
                   padding: EdgeInsets.only(
                     top: topPad + 6,
@@ -686,8 +780,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
 
-              // NO PERSON DETECTED
-              // SCREEN / PHOTO / VIDEO DETECTED (fake person)
               // NO PERSON DETECTED
               if (_noPersonDetected && !_isScanning)
                 Positioned(
@@ -777,22 +869,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 left: 0,
                 right: 0,
                 child: Container(
+                  key: _bottomBarKey,
                   color: barBg,
                   padding: EdgeInsets.only(
-                    top: 20,
+                    top: 14,
                     left: 20,
                     right: 20,
-                    bottom: bottomPad + 16,
+                    bottom: bottomPad + 10,
                   ),
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: _isScanning
-                        ? _buildScanningBottom(
-                            iconColor: iconColor,
-                            sideBtnBg: sideBtnBg,
-                            sideBtnBorder: sideBtnBorder,
-                          )
-                        : _buildDetectBottom(
+                  // ── FIX (bottom bar shrink bug, no hardcoded height) ──
+                  // Pehle isme height:190 hardcoded thi jo kuch devices pe
+                  // overflow kar rahi thi (font-scale/screen-size farak ki
+                  // wajah se). Ab ek invisible "sizer" copy (Opacity 0 +
+                  // IgnorePointer) hamesha sabse tall content (empty detect
+                  // state) render karta hai sirf space reserve karne ke liye
+                  // — uske actual measured size ke hisaab se Stack apni height
+                  // khud decide karta hai. Isliye kabhi overflow nahi hoga,
+                  // chahe kisi bhi device/font-size pe chale, aur black bg
+                  // kabhi bhi content ke hisaab se shrink nahi hogi.
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Opacity(
+                        opacity: 0,
+                        child: IgnorePointer(
+                          child: _buildDetectBottom(
                             iconColor: iconColor,
                             hintColor: hintColor,
                             pillBg: pillBg,
@@ -800,7 +901,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             scanIconColor: scanIconColor,
                             sideBtnBg: sideBtnBg,
                             sideBtnBorder: sideBtnBorder,
+                            forceEmpty: true,
                           ),
+                        ),
+                      ),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        child: _isScanning
+                            ? _buildScanningBottom(
+                                iconColor: iconColor,
+                                sideBtnBg: sideBtnBg,
+                                sideBtnBorder: sideBtnBorder,
+                              )
+                            : _buildDetectBottom(
+                                iconColor: iconColor,
+                                hintColor: hintColor,
+                                pillBg: pillBg,
+                                pillTextColor: pillTextColor,
+                                scanIconColor: scanIconColor,
+                                sideBtnBg: sideBtnBg,
+                                sideBtnBorder: sideBtnBorder,
+                              ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -819,8 +942,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     required Color scanIconColor,
     required Color sideBtnBg,
     required Color sideBtnBorder,
+    bool forceEmpty = false,
   }) {
-    if (_shootPoses.isEmpty) {
+    if (_shootPoses.isEmpty || forceEmpty) {
       return Column(
         key: const ValueKey('detect-empty'),
         mainAxisSize: MainAxisSize.min,
@@ -833,7 +957,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               letterSpacing: 0.3,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _WidePill(
             icon: Icons.crop_free_rounded,
             label: 'Scan scene to add poses',
@@ -845,7 +969,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               _startScan();
             },
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _WidePill(
             icon: Icons.person_outline_rounded,
             label: 'Select poses from catalog',
@@ -854,7 +978,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             textColor: pillTextColor,
             onTap: _openCatalog,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -904,7 +1028,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             });
           },
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -1126,21 +1250,21 @@ class _WidePill extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 11),
         decoration: BoxDecoration(
           color: bgColor,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(24),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: iconColor, size: 18),
-            const SizedBox(width: 10),
+            Icon(icon, color: iconColor, size: 17),
+            const SizedBox(width: 9),
             Text(
               label,
               style: TextStyle(
                 color: textColor,
-                fontSize: 15,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
             ),
