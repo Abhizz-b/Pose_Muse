@@ -19,7 +19,7 @@ class DetectionService {
 
   // ── LIVENESS CHECK TUNING ──
   // Ye numbers starting point hain — real device pe test karke
-  // adjust karne padenge (neeche note mein explain kiya hai kaise).
+  // adjust karne padenge.
   static const _liveGapMs = 400; // 2 frames ke beech gap
   static const _minGyroDeltaForCheck =
       0.03; // itna phone move na ho to check skip (inconclusive)
@@ -119,7 +119,7 @@ class DetectionService {
 
       final landmarks1 = poses1.first.landmarks;
       bool visible1(PoseLandmarkType t) =>
-          landmarks1[t] != null && landmarks1[t]!.likelihood > 0.6;
+          landmarks1[t] != null && landmarks1[t]!.likelihood > 0.75;
 
       final hasCoreEvidence1 =
           visible1(PoseLandmarkType.nose) ||
@@ -148,7 +148,7 @@ class DetectionService {
 
       final landmarks2 = poses2.first.landmarks;
       bool visible2(PoseLandmarkType t) =>
-          landmarks2[t] != null && landmarks2[t]!.likelihood > 0.6;
+          landmarks2[t] != null && landmarks2[t]!.likelihood > 0.75;
 
       final hasCoreEvidence2 =
           visible2(PoseLandmarkType.nose) ||

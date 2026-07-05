@@ -26,6 +26,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   List<CameraDescription> _cameras = [];
   bool _isInitialized = false;
   bool _isScanning = false;
+  bool _isDetecting =
+      false; // naya — pre-check phase ke dauraan double-tap रोकने ke liye
   bool _showFlash = false;
   bool _isFrontCamera = false;
   bool _flashOn = false;
@@ -151,10 +153,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _startScan() async {
-    if (_isScanning) return;
+    if (_isScanning || _isDetecting) return;
     HapticFeedback.mediumImpact();
 
     setState(() {
+      _isDetecting = true;
       _noPersonDetected = false;
       _screenDetected = false;
     });
@@ -182,7 +185,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
 
     if (!mounted) return;
-
+    setState(() => _isDetecting = false);
     if (scanResult == ScanResult.noPerson) {
       setState(() {
         _isScanning = false;
@@ -685,6 +688,49 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
               // NO PERSON DETECTED
               // SCREEN / PHOTO / VIDEO DETECTED (fake person)
+              // NO PERSON DETECTED
+              if (_noPersonDetected && !_isScanning)
+                Positioned(
+                  top: topPad + 70,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.75),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: Colors.red.withOpacity(0.4),
+                          width: 1,
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: Color(0xFFE24B4A),
+                            size: 15,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'No person detected. Rescan.',
+                            style: TextStyle(
+                              color: Color(0xFFF09595),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+              // SCREEN / PHOTO / VIDEO DETECTED (fake person)
               if (_screenDetected && !_isScanning)
                 Positioned(
                   top: topPad + 70,
@@ -725,7 +771,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
-
               // BOTTOM BAR
               Positioned(
                 bottom: 0,
