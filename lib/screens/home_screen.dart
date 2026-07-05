@@ -48,6 +48,39 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final GlobalKey _topBarKey = GlobalKey();
   final GlobalKey _bottomBarKey = GlobalKey();
 
+  // ── NAYA (FOV/zoom fix) ──
+  // Pehle camera preview Positioned.fill tha — matlab BoxFit.cover ka
+  // calculation POORI screen height ke against ho raha tha, jabki actual
+  // visible strip (top bar aur bottom bar ke beech wala hissa) usse kaafi
+  // chhoti hoti hai. Jitni zyada height cover karni padti hai utna zyada
+  // camera ko horizontally crop karna padta hai — isi wajah se preview
+  // "zoomed in" dikh raha tha stock camera app ke comparison mein.
+  // Ab hum top/bottom bar ki actual measured height store kar rahe hain
+  // aur preview ko sirf us beech wale visible strip mein constrain kar
+  // rahe hain, taaki cover-fit calculation sahi (chhoti) height ke against
+  // ho aur crop kam ho — jisse FOV wide dikhega, jaisa stock camera mein.
+  //
+  // Initial fallback values approximate hain (pehle frame ke liye, jab tak
+  // actual measurement nahi aa jaata) taaki first frame se hi reasonably
+  // accurate dikhe aur koi visible "jump" na ho.
+  double _topBarHeight = 90;
+  double _bottomBarHeight = 220;
+
+  // ── NAYA (extra zoom-out control) ──
+  // BoxFit.cover hamesha poora visible area fill karta hai bina kisi gap
+  // ke — jitna bhi crop chahiye utna karega. Aur wide FOV chahiye to thoda
+  // letterbox (halka gap, edges pe) allow karna padta hai. Yeh factor
+  // "cover" scale ko thoda kam kar deta hai (matlab thoda kam zoom-in),
+  // jisse crop kam hota hai aur FOV wide dikhta hai — trade-off yeh hai ki
+  // preview ab full-bleed edge-to-edge nahi rahega, chhoti si black strip
+  // dikh sakti hai (bar ke color se blend karke minimal rakha hai).
+  //
+  // 1.0 = purana behavior (full cover, zyada crop/zoom).
+  // Jitna chhota (e.g. 0.85), utna zyada zoom-out — lekin bahut chhota
+  // karne se letterbox zyada visible hone lagega. Scale ko "contain" scale
+  // se neeche kabhi nahi jaane dete, taaki excessive gap na aaye.
+  static const double _previewZoomOutFactor = 0.78;
+
   late AnimationController _scanLineController;
   late Animation<double> _scanLineAnim;
   late AnimationController _statusFadeController;
@@ -79,6 +112,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
     _wheelController = PageController(viewportFraction: 0.32);
     _initCamera();
+  }
+
+  // ── NAYA (FOV/zoom fix) ──
+  // Top/bottom bar ki actual rendered height measure karke state update
+  // karta hai, taaki camera preview strip sahi size mein constrain ho.
+  // Sirf tabhi setState karta hai jab height mein real farak ho (0.5px se
+  // zyada), taaki unnecessary rebuilds na ho.
+  void _measureBarHeights() {
+    final topBox = _topBarKey.currentContext?.findRenderObject() as RenderBox?;
+    final bottomBox =
+        _bottomBarKey.currentContext?.findRenderObject() as RenderBox?;
+    final newTop = topBox?.size.height ?? _topBarHeight;
+    final newBottom = bottomBox?.size.height ?? _bottomBarHeight;
+    if ((newTop - _topBarHeight).abs() > 0.5 ||
+        (newBottom - _bottomBarHeight).abs() > 0.5) {
+      if (mounted) {
+        setState(() {
+          _topBarHeight = newTop;
+          _bottomBarHeight = newBottom;
+        });
+      }
+    }
   }
 
   Future<void> _initCamera({bool useFront = false}) async {
@@ -358,6 +413,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // sensor frame deta hai — bina kisi crop ke. Ye function un dono cheezon
   // (cover-crop + bar-overlap) ko replicate karke final saved photo ko
   // exactly wahi area tak crop karta hai jo user ne screen pe dekha tha.
+  //
+  // NOTE (FOV fix ke baad): ab live preview khud hi sirf top/bottom bar
+  // ke beech wale strip mein render hota hai (poori screen mein nahi),
+  // isliye "extra top/bottom bar overlap" wala crop ab in-preview hi ho
+  // chuka hota hai. Neeche wala calculation ab bhi सही kaam karega kyunki
+  // ye seedha topBarHeight/bottomBarHeight measure karta hai — displayed
+  // preview area humesha unhi ke beech wala strip hota hai, chahe wo
+  // Positioned.fill ho ya constrained Positioned. Fark sirf itna hai ki
+  // ab cover-fit calculation bhi usi chhoti height ke against ho raha hai,
+  // to extraH/extraW automatically kam honge — jo sahi hai (kam crop =
+  // kam zoom, jo user chahta tha).
   Future<String> _cropToVisibleArea(String originalPath) async {
     try {
       final screenSize = MediaQuery.of(context).size;
@@ -369,14 +435,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       final topBarHeight = topBarBox?.size.height ?? 0.0;
       final bottomBarHeight = bottomBarBox?.size.height ?? 0.0;
 
+      // Preview ab sirf visible strip (screenHeight - topBarHeight -
+      // bottomBarHeight) mein render hota hai, isliye cover-fit
+      // calculation bhi usi strip ke against karna hai — poori
+      // screenSize.height ke against nahi.
+      final visibleStripHeight =
+          (screenSize.height - topBarHeight - bottomBarHeight).clamp(
+            1.0,
+            screenSize.height,
+          );
+
       // build() mein camera preview jis SizedBox mein wrap hota hai,
-      // uska hi width/height yahan use kar rahe hain (previewSize swapped)
+      // uska hi width/height yahan use kar rahe hain (previewSize swapped,
+      // aur zoom-out factor ke hisaab se inflate kiya hua — preview widget
+      // wale calculation se exactly match karne ke liye)
       final previewSize = _cameraController!.value.previewSize!;
-      final boxW = previewSize.height;
-      final boxH = previewSize.width;
+      final boxW = previewSize.height / _previewZoomOutFactor;
+      final boxH = previewSize.width / _previewZoomOutFactor;
 
       final scaleW = screenSize.width / boxW;
-      final scaleH = screenSize.height / boxH;
+      final scaleH = visibleStripHeight / boxH;
+      // NAYA: boxW/boxH already zoom-out factor se inflate ho chuke hain
+      // (upar), isliye yahan seedha cover-scale use karna hai — FittedBox
+      // bhi exactly yahi karta hai apne andar, koi extra multiply/clamp
+      // nahi chahiye (warna factor do baar apply ho jayega, galat crop).
       final scale = scaleW > scaleH ? scaleW : scaleH;
 
       final displayedW = boxW * scale;
@@ -384,18 +466,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       final extraW =
           displayedW - screenSize.width; // >0 => left/right crop hota hai
       final extraH =
-          displayedH - screenSize.height; // >0 => top/bottom crop hota hai
+          displayedH -
+          visibleStripHeight; // >0 => top/bottom crop hota hai (strip ke andar)
 
       final fracLeftRight = extraW > 0 ? (extraW / 2) / scale / boxW : 0.0;
       final fracTopBottomFromCover = extraH > 0
           ? (extraH / 2) / scale / boxH
           : 0.0;
 
-      final fracTopBar = (topBarHeight / scale) / boxH;
-      final fracBottomBar = (bottomBarHeight / scale) / boxH;
-
-      final totalTopFrac = fracTopBottomFromCover + fracTopBar;
-      final totalBottomFrac = fracTopBottomFromCover + fracBottomBar;
+      // Bar overlap ab preview area ke bahar hai (Positioned constraint
+      // ki wajah se), isliye bar-height wala extra crop add nahi karna —
+      // sirf cover-crop ka hissa hi lena hai.
+      final totalTopFrac = fracTopBottomFromCover;
+      final totalBottomFrac = fracTopBottomFromCover;
       final totalLeftFrac = fracLeftRight;
       final totalRightFrac = fracLeftRight;
 
@@ -494,6 +577,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // ── NAYA (FOV/zoom fix) ──
+    // Har build ke baad top/bottom bar ki actual height measure kar lete
+    // hain (post-frame, taaki RenderBox available ho). Yeh bar heights
+    // change hone pe (font-scale, safe-area, orientation waghera) bhi
+    // apne aap update ho jaayega.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measureBarHeights());
+
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeNotifier,
       builder: (context, themeMode, _) {
@@ -552,14 +642,45 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           body: Stack(
             children: [
               // FULL SCREEN CAMERA
+              // ── NAYA (FOV/zoom fix) ──
+              // Pehle Positioned.fill tha (poori screen height ke against
+              // cover-fit hota tha, jisse zyada crop/zoom hota tha). Ab
+              // preview sirf top/bottom bar ke beech wale visible strip
+              // mein constrain hai — cover-fit calculation ab sirf usi
+              // chhoti height ke against hota hai, isliye crop kam hoga
+              // aur field-of-view stock camera app jaisa wide dikhega.
               if (_isInitialized && _cameraController != null)
-                Positioned.fill(
-                  child: FittedBox(
-                    fit: BoxFit.cover,
-                    child: SizedBox(
-                      width: _cameraController!.value.previewSize!.height,
-                      height: _cameraController!.value.previewSize!.width,
-                      child: CameraPreview(_cameraController!),
+                Positioned(
+                  top: _topBarHeight,
+                  bottom: _bottomBarHeight,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    // agar zoom-out ki wajah se koi chhota gap bache to
+                    // wo is black background se blend ho jayega
+                    color: Colors.black,
+                    child: ClipRect(
+                      child: FittedBox(
+                        fit: BoxFit.cover,
+                        child: SizedBox(
+                          // NAYA (safe zoom-out fix): size ko thoda inflate
+                          // kiya hai (dono dimensions equally /factor se) —
+                          // aspect ratio bilkul same rehta hai (dono equally
+                          // badhte hain), isliye koi distortion nahi hoga.
+                          // Bas FittedBox ka apna cover-scale calculation
+                          // is bade "virtual" size ke against thoda kam
+                          // ho jayega — matlab kam zoom/crop, wider FOV.
+                          // factor 1.0 = purana zoomed-in behavior (koi
+                          // inflation nahi).
+                          width:
+                              _cameraController!.value.previewSize!.height /
+                              _previewZoomOutFactor,
+                          height:
+                              _cameraController!.value.previewSize!.width /
+                              _previewZoomOutFactor,
+                          child: CameraPreview(_cameraController!),
+                        ),
+                      ),
                     ),
                   ),
                 )
