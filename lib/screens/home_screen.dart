@@ -426,7 +426,52 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         height: newH,
       );
 
-      final croppedBytes = img.encodeJpg(cropped, quality: 92);
+      // ── NAYA: final standard-ratio crop ──
+      // Upar wala crop sirf bars/cover-crop hata raha tha, jisse ek
+      // "random" ratio bach jaata tha (device ke hisaab se alag-alag).
+      // Instagram Story jaisi jagah upload karte waqt is wajah se
+      // Instagram khud zoom/pad kar deta tha kyunki photo kisi standard
+      // shape mein nahi thi. Ab isse Android ke normal camera jaise
+      // classic 4:3 (portrait mein 3:4 — width:height) ratio mein
+      // hamesha center-crop kar rahe hain, taaki output predictable aur
+      // "standard" lage, chahe device kuch bhi ho.
+      const targetRatio = 3 / 4; // width / height, portrait 4:3
+      final curW = cropped.width;
+      final curH = cropped.height;
+      final curRatio = curW / curH;
+
+      img.Image finalImage;
+      if (curRatio > targetRatio) {
+        // photo chaudi zyada hai apni height ke hisaab se -> width crop karo
+        final newFinalW = (curH * targetRatio).round().clamp(1, curW);
+        final xOffset = ((curW - newFinalW) / 2).round().clamp(
+          0,
+          curW - newFinalW,
+        );
+        finalImage = img.copyCrop(
+          cropped,
+          x: xOffset,
+          y: 0,
+          width: newFinalW,
+          height: curH,
+        );
+      } else {
+        // photo lambi zyada hai apni width ke hisaab se -> height crop karo
+        final newFinalH = (curW / targetRatio).round().clamp(1, curH);
+        final yOffset = ((curH - newFinalH) / 2).round().clamp(
+          0,
+          curH - newFinalH,
+        );
+        finalImage = img.copyCrop(
+          cropped,
+          x: 0,
+          y: yOffset,
+          width: curW,
+          height: newFinalH,
+        );
+      }
+
+      final croppedBytes = img.encodeJpg(finalImage, quality: 92);
       await File(originalPath).writeAsBytes(croppedBytes);
       return originalPath;
     } catch (e, stack) {
