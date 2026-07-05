@@ -1118,6 +1118,7 @@ class _HomeScreenState extends State<HomeScreen>
                             scanIconColor: scanIconColor,
                             sideBtnBg: sideBtnBg,
                             sideBtnBorder: sideBtnBorder,
+                            isDark: isDark,
                             forceEmpty: true,
                           ),
                         ),
@@ -1129,6 +1130,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 iconColor: iconColor,
                                 sideBtnBg: sideBtnBg,
                                 sideBtnBorder: sideBtnBorder,
+                                isDark: isDark,
                               )
                             : _buildDetectBottom(
                                 iconColor: iconColor,
@@ -1138,6 +1140,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 scanIconColor: scanIconColor,
                                 sideBtnBg: sideBtnBg,
                                 sideBtnBorder: sideBtnBorder,
+                                isDark: isDark,
                               ),
                       ),
                     ],
@@ -1159,6 +1162,7 @@ class _HomeScreenState extends State<HomeScreen>
     required Color scanIconColor,
     required Color sideBtnBg,
     required Color sideBtnBorder,
+    required bool isDark,
     bool forceEmpty = false,
   }) {
     if (_shootPoses.isEmpty || forceEmpty) {
@@ -1227,6 +1231,7 @@ class _HomeScreenState extends State<HomeScreen>
           poses: _shootPoses,
           controller: _wheelController,
           previewedPose: _previewPose,
+          isDark: isDark,
           onCenterChanged: (index) {
             setState(() {
               _wheelCenterIndex = index;
@@ -1266,7 +1271,11 @@ class _HomeScreenState extends State<HomeScreen>
                 _startScan();
               },
             ),
-            _ShutterBtn(isScanning: false, onTap: _capturePhoto),
+            _ShutterBtn(
+              isScanning: false,
+              isDark: isDark,
+              onTap: _capturePhoto,
+            ),
             Stack(
               clipBehavior: Clip.none,
               children: [
@@ -1322,6 +1331,7 @@ class _HomeScreenState extends State<HomeScreen>
     required Color iconColor,
     required Color sideBtnBg,
     required Color sideBtnBorder,
+    required bool isDark,
   }) {
     return Row(
       key: const ValueKey('scanning'),
@@ -1334,7 +1344,7 @@ class _HomeScreenState extends State<HomeScreen>
           borderColor: sideBtnBorder,
           onTap: _openGallery,
         ),
-        _ShutterBtn(isScanning: true, onTap: null),
+        _ShutterBtn(isScanning: true, isDark: isDark, onTap: null),
         _SideBtn(
           icon: Icons.flip_camera_android_outlined,
           iconColor: iconColor,
@@ -1583,12 +1593,32 @@ class _DottedCirclePainter extends CustomPainter {
 
 class _ShutterBtn extends StatelessWidget {
   final bool isScanning;
+  final bool isDark;
   final VoidCallback? onTap;
 
-  const _ShutterBtn({required this.isScanning, required this.onTap});
+  const _ShutterBtn({
+    required this.isScanning,
+    required this.onTap,
+    this.isDark = true,
+  });
 
   @override
   Widget build(BuildContext context) {
+    // ── FIX (light theme shutter button) ──
+    // Pehle inner circle hamesha Colors.black tha, chahe theme kuch bhi
+    // ho — light theme mein bhi black hi rehta tha jo baaki UI (off-white
+    // bars) ke saath mismatch karta tha. Ab light theme mein inner circle
+    // ko bar-background jaisa halka off-white rakha hai (halke border ke
+    // saath taaki edge define ho), aur dark theme mein purana black
+    // behavior bilkul same rehta hai.
+    final innerIdleColor = isDark ? Colors.black : const Color(0xFFF2F0F7);
+    final innerBorder = isDark
+        ? null
+        : Border.all(color: const Color(0x26000000), width: 1);
+    final scanningOverlayColor = isDark
+        ? Colors.white
+        : const Color(0xFF6B2FD6);
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1610,15 +1640,16 @@ class _ShutterBtn extends StatelessWidget {
               shape: BoxShape.circle,
               color: isScanning
                   ? const Color(0xFF9C6FFF).withOpacity(0.4)
-                  : Colors.black,
+                  : innerIdleColor,
+              border: isScanning ? null : innerBorder,
             ),
             child: isScanning
-                ? const Center(
+                ? Center(
                     child: SizedBox(
                       width: 22,
                       height: 22,
                       child: CircularProgressIndicator(
-                        color: Colors.white,
+                        color: scanningOverlayColor,
                         strokeWidth: 2,
                       ),
                     ),
@@ -1717,6 +1748,7 @@ class _PoseWheelCarousel extends StatefulWidget {
   final ValueChanged<int> onCenterChanged;
   final ValueChanged<PoseModel>? onPoseTap;
   final PoseModel? previewedPose;
+  final bool isDark;
 
   const _PoseWheelCarousel({
     required this.poses,
@@ -1724,6 +1756,7 @@ class _PoseWheelCarousel extends StatefulWidget {
     required this.onCenterChanged,
     this.onPoseTap,
     this.previewedPose,
+    this.isDark = true,
   });
 
   @override
@@ -1754,6 +1787,20 @@ class _PoseWheelCarouselState extends State<_PoseWheelCarousel> {
 
   @override
   Widget build(BuildContext context) {
+    // ── FIX (light theme carousel contrast) ──
+    // Pehle yeh hamesha Color(0xFF1A1A1A) (dark charcoal) tha, chahe
+    // theme light ho ya dark — isi wajah se light theme mein poses ke
+    // peeche ek ajeeb black box dikhta tha. Ab theme ke hisaab se ek
+    // halka off-white/lavender-tinted background use hota hai jo light
+    // theme ke baaki UI (barBg == 0xFFF2F0F7) se match karta hai, aur
+    // dark theme mein purana behavior bilkul same rehta hai.
+    final tileBg = widget.isDark
+        ? const Color(0xFF1A1A1A)
+        : const Color(0xFFE7E4EF);
+    final placeholderIconColor = widget.isDark
+        ? Colors.white38
+        : const Color(0xFF9B96B0);
+
     return SizedBox(
       height: 78,
       child: PageView.builder(
@@ -1811,7 +1858,9 @@ class _PoseWheelCarouselState extends State<_PoseWheelCarousel> {
                           boxShadow: absDiff < 0.3
                               ? [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.35),
+                                    color: Colors.black.withOpacity(
+                                      widget.isDark ? 0.35 : 0.15,
+                                    ),
                                     blurRadius: 6,
                                     offset: const Offset(0, 2),
                                   ),
@@ -1826,10 +1875,10 @@ class _PoseWheelCarouselState extends State<_PoseWheelCarousel> {
                                         File(widget.poses[index].imagePath!),
                                         fit: BoxFit.cover,
                                         errorBuilder: (_, __, ___) => Container(
-                                          color: const Color(0xFF1A1A1A),
-                                          child: const Icon(
+                                          color: tileBg,
+                                          child: Icon(
                                             Icons.image,
-                                            color: Colors.white38,
+                                            color: placeholderIconColor,
                                             size: 22,
                                           ),
                                         ),
@@ -1838,15 +1887,15 @@ class _PoseWheelCarouselState extends State<_PoseWheelCarousel> {
                                         widget.poses[index].imagePath!,
                                         fit: BoxFit.cover,
                                         errorBuilder: (_, __, ___) => Container(
-                                          color: const Color(0xFF1A1A1A),
-                                          child: const Icon(
+                                          color: tileBg,
+                                          child: Icon(
                                             Icons.image,
-                                            color: Colors.white38,
+                                            color: placeholderIconColor,
                                             size: 22,
                                           ),
                                         ),
                                       ))
-                              : Container(color: const Color(0xFF1A1A1A)),
+                              : Container(color: tileBg),
                         ),
                       ),
                     ),
