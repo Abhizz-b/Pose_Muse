@@ -1,1 +1,1 @@
-enum ScanResult { noPerson, fullBody, selfie }
+enum ScanResult { noPerson, fullBody, selfie, screenDetected }

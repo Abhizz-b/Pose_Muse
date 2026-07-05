@@ -1,6 +1,10 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:math';
+import 'dart:ui' as ui;
 import 'package:camera/camera.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 import '../models/scan_result.dart';
 
 class DetectionService {
@@ -13,36 +17,28 @@ class DetectionService {
     return _poseDetector!;
   }
 
+  // ── LIVENESS CHECK TUNING ──
+  // Ye numbers starting point hain — real device pe test karke
+  // adjust karne padenge (neeche note mein explain kiya hai kaise).
+  static const _liveGapMs = 400; // 2 frames ke beech gap
+  static const _minGyroDeltaForCheck =
+      0.03; // itna phone move na ho to check skip (inconclusive)
+  static const _planarVarianceThreshold =
+      0.0006; // isse kam variance = flat/screen suspect
+
+  /// PURANA method — jahan pehle se use ho raha hai wahan ke liye
+  /// as-is rakha hai, kisi aur jagah break na ho.
   static Future<ScanResult> analyze(CameraController cameraController) async {
-    // FIX: pehle front camera pe detection bilkul skip ho jaata tha aur
-    // hamesha ScanResult.selfie return hota tha — chahe frame mein koi
-    // ho ya na ho. Ab front camera pe bhi wahi real pose-check chalega
-    // jo back camera pe chalta hai, bas fullBody requirement front
-    // camera ke liye relax kar denge (selfie mein legs dikhna normal
-    // nahi hota).
     final isFront =
         cameraController.description.lensDirection == CameraLensDirection.front;
 
     XFile? frame;
     try {
-      // ignore: avoid_print
-      print('🔍 [1/3] takePicture() shuru...');
       frame = await cameraController.takePicture();
-      // ignore: avoid_print
-      print('🔍 [1/3] takePicture() done: ${frame.path}');
-
       final inputImage = InputImage.fromFilePath(frame.path);
-      // ignore: avoid_print
-      print('🔍 [2/3] processImage() shuru...');
       final poses = await _detector.processImage(inputImage);
-      // ignore: avoid_print
-      print('🔍 [2/3] processImage() done. Poses found: ${poses.length}');
 
-      if (poses.isEmpty) {
-        // ignore: avoid_print
-        print('🔍 [3/3] Result: noPerson (poses list khaali)');
-        return ScanResult.noPerson;
-      }
+      if (poses.isEmpty) return ScanResult.noPerson;
 
       final landmarks = poses.first.landmarks;
       bool visible(PoseLandmarkType type) {
@@ -50,36 +46,14 @@ class DetectionService {
         return lm != null && lm.likelihood > 0.6;
       }
 
-      // FIX (false positive): ML Kit kabhi kabhi ek "pose" object
-      // return kar deta hai jisme landmarks map non-empty hoti hai
-      // lekin sab landmarks ka likelihood bahut low hota hai (koi
-      // real subject nahi, bas noise/shadow se ek ghost pose ban
-      // jaata hai). Pehle code seedha isko bhi "selfie" maan leta
-      // tha kyunki sirf poses.isEmpty check ho raha tha.
-      // Ab hum minimum core evidence maangte hain — nose ya dono
-      // shoulders reliably (>0.6 likelihood) dikhne chahiye, tabhi
-      // "person hai" maanenge. Warna noPerson.
       final hasCorePersonEvidence =
           visible(PoseLandmarkType.nose) ||
           (visible(PoseLandmarkType.leftShoulder) &&
               visible(PoseLandmarkType.rightShoulder));
 
-      // ignore: avoid_print
-      print('🔍 [3/3] hasCorePersonEvidence: $hasCorePersonEvidence');
+      if (!hasCorePersonEvidence) return ScanResult.noPerson;
 
-      if (!hasCorePersonEvidence) {
-        // ignore: avoid_print
-        print('🔍 [3/3] Result: noPerson (core evidence weak/missing)');
-        return ScanResult.noPerson;
-      }
-
-      if (isFront) {
-        // Selfie mein full body ki zaroorat nahi — core evidence
-        // (face/shoulders) mil gaya matlab person hai.
-        // ignore: avoid_print
-        print('🔍 [3/3] Result: selfie (front camera)');
-        return ScanResult.selfie;
-      }
+      if (isFront) return ScanResult.selfie;
 
       final fullBodyVisible =
           visible(PoseLandmarkType.leftAnkle) &&
@@ -93,23 +67,176 @@ class DetectionService {
 
       return fullBodyVisible ? ScanResult.fullBody : ScanResult.selfie;
     } catch (e, stack) {
-      // Detection ya capture fail hua — ML Kit setup issue, permission
-      // issue, ya camera busy hona (common causes) print kar rahe hain
-      // taaki debug karna aasan ho. Ye function ab exception rethrow
-      // karta hai — caller (home_screen) usko catch karega aur
-      // noPerson maan lega, lekin ab error visible hoga console mein.
       // ignore: avoid_print
-      print('❌ DetectionService error: $e');
+      print('❌ DetectionService.analyze error: $e');
       // ignore: avoid_print
       print(stack);
       rethrow;
     } finally {
-      // Delete the temp scan frame — don't clutter the user's gallery
       if (frame != null) {
         final f = File(frame.path);
         if (await f.exists()) await f.delete();
       }
     }
+  }
+
+  /// NAYA method — isko home_screen se call karna hai ab.
+  /// 2 frames leta hai thodi si gap ke saath, gyroscope se device
+  /// movement track karta hai, aur landmarks ka displacement compare
+  /// karke decide karta hai ki real 3D person hai ya flat screen/photo/video.
+  static Future<ScanResult> analyzeLiveness(
+    CameraController cameraController,
+  ) async {
+    final isFront =
+        cameraController.description.lensDirection == CameraLensDirection.front;
+
+    XFile? frame1;
+    XFile? frame2;
+    StreamSubscription<GyroscopeEvent>? gyroSub;
+    double gyroDelta = 0;
+    DateTime? lastTick;
+
+    try {
+      // Gyroscope se rotation integrate karna shuru — background mein
+      // chalega jab tak dono frames capture nahi ho jaate
+      gyroSub = gyroscopeEventStream().listen((event) {
+        final now = DateTime.now();
+        if (lastTick != null) {
+          final dt = now.difference(lastTick!).inMilliseconds / 1000.0;
+          final mag = sqrt(
+            event.x * event.x + event.y * event.y + event.z * event.z,
+          );
+          gyroDelta += mag * dt;
+        }
+        lastTick = now;
+      });
+
+      // ── FRAME 1 ──
+      frame1 = await cameraController.takePicture();
+      final poses1 = await _detector.processImage(
+        InputImage.fromFilePath(frame1.path),
+      );
+
+      if (poses1.isEmpty) return ScanResult.noPerson;
+
+      final landmarks1 = poses1.first.landmarks;
+      bool visible1(PoseLandmarkType t) =>
+          landmarks1[t] != null && landmarks1[t]!.likelihood > 0.6;
+
+      final hasCoreEvidence1 =
+          visible1(PoseLandmarkType.nose) ||
+          (visible1(PoseLandmarkType.leftShoulder) &&
+              visible1(PoseLandmarkType.rightShoulder));
+
+      if (!hasCoreEvidence1) return ScanResult.noPerson;
+
+      // ── WAIT (gyroscope is dauraan record karta rahega) ──
+      await Future.delayed(const Duration(milliseconds: _liveGapMs));
+
+      // ── FRAME 2 ──
+      frame2 = await cameraController.takePicture();
+      final poses2 = await _detector.processImage(
+        InputImage.fromFilePath(frame2.path),
+      );
+
+      await gyroSub.cancel();
+      gyroSub = null;
+
+      if (poses2.isNotEmpty) {
+        final landmarks2 = poses2.first.landmarks;
+        bool visible2(PoseLandmarkType t) =>
+            landmarks2[t] != null && landmarks2[t]!.likelihood > 0.6;
+
+        const candidates = [
+          PoseLandmarkType.nose,
+          PoseLandmarkType.leftShoulder,
+          PoseLandmarkType.rightShoulder,
+          PoseLandmarkType.leftHip,
+          PoseLandmarkType.rightHip,
+        ];
+
+        final displacements = <double>[];
+        for (final type in candidates) {
+          if (visible1(type) && visible2(type)) {
+            final p1 = landmarks1[type]!;
+            final p2 = landmarks2[type]!;
+            final dx = p2.x - p1.x;
+            final dy = p2.y - p1.y;
+            displacements.add(sqrt(dx * dx + dy * dy));
+          }
+        }
+
+        if (displacements.length >= 3 && gyroDelta > _minGyroDeltaForCheck) {
+          final size = await _decodeSize(frame1.path);
+          final diagonal = sqrt(
+            size.width * size.width + size.height * size.height,
+          );
+
+          if (diagonal > 0) {
+            final normalized = displacements.map((d) => d / diagonal).toList();
+            final mean = normalized.reduce((a, b) => a + b) / normalized.length;
+            final variance =
+                normalized
+                    .map((d) => (d - mean) * (d - mean))
+                    .reduce((a, b) => a + b) /
+                normalized.length;
+
+            // ignore: avoid_print
+            print(
+              '🕵️ Liveness check — gyroDelta:$gyroDelta variance:$variance mean:$mean',
+            );
+
+            // Phone move hua (gyroDelta significant) lekin sab landmarks
+            // ek hi rate se move hue (variance bahut kam) -> depth ka
+            // koi fark nahi -> flat surface (screen/photo/video)
+            if (variance < _planarVarianceThreshold) {
+              return ScanResult.screenDetected;
+            }
+          }
+        }
+      }
+
+      // ── NORMAL FLOW — frame1 ke landmarks se full body/selfie decide ──
+      if (isFront) return ScanResult.selfie;
+
+      final fullBodyVisible =
+          visible1(PoseLandmarkType.leftAnkle) &&
+          visible1(PoseLandmarkType.rightAnkle) &&
+          visible1(PoseLandmarkType.leftKnee) &&
+          visible1(PoseLandmarkType.rightKnee) &&
+          visible1(PoseLandmarkType.leftHip) &&
+          visible1(PoseLandmarkType.rightHip) &&
+          visible1(PoseLandmarkType.leftShoulder) &&
+          visible1(PoseLandmarkType.rightShoulder);
+
+      return fullBodyVisible ? ScanResult.fullBody : ScanResult.selfie;
+    } catch (e, stack) {
+      // ignore: avoid_print
+      print('❌ DetectionService.analyzeLiveness error: $e');
+      // ignore: avoid_print
+      print(stack);
+      rethrow;
+    } finally {
+      await gyroSub?.cancel();
+      if (frame1 != null) {
+        final f = File(frame1.path);
+        if (await f.exists()) await f.delete();
+      }
+      if (frame2 != null) {
+        final f = File(frame2.path);
+        if (await f.exists()) await f.delete();
+      }
+    }
+  }
+
+  static Future<ui.Size> _decodeSize(String path) async {
+    final bytes = await File(path).readAsBytes();
+    final completer = Completer<ui.Image>();
+    ui.decodeImageFromList(bytes, (ui.Image img) {
+      completer.complete(img);
+    });
+    final decoded = await completer.future;
+    return ui.Size(decoded.width.toDouble(), decoded.height.toDouble());
   }
 
   static void dispose() {

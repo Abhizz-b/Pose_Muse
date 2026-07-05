@@ -33,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _timerSeconds = 0;
   String _statusMessage = '';
   bool _noPersonDetected = false;
+  bool _screenDetected = false; // naya — screen/photo/video pakda jaye to true
   List<PoseModel> _shootPoses = [];
   int _wheelCenterIndex = 0;
   late PageController _wheelController;
@@ -153,41 +154,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (_isScanning) return;
     HapticFeedback.mediumImpact();
 
-    // ── STEP 1: SILENT PRE-CHECK ──
-    // Koi UI, koi animation, koi status text nahi dikhana — bas
-    // milliseconds mein pata karo ki person frame mein hai ya nahi.
     setState(() {
       _noPersonDetected = false;
+      _screenDetected = false;
     });
 
     ScanResult scanResult;
     try {
-      // ── FIX (freeze bug) ──
-      // Agar takePicture()/ML Kit ka native call kisi wajah se atak
-      // (hang) jaaye, pehle poori app hamesha ke liye freeze ho jaati
-      // thi kyunki UI us await ka wait kar rahi thi jo kabhi resolve
-      // nahi hota tha. Ab 6 second ka timeout hai — usse zyada lagे to
-      // hum khud noPerson maan lete hain aur UI turant respond karti
-      // hai, bhale hi root native issue abhi bhi background mein ho.
-      scanResult = await DetectionService.analyze(_cameraController!).timeout(
-        const Duration(seconds: 6),
-        onTimeout: () {
-          debugPrint(
-            '⏱️ DetectionService.analyze() timed out after 6s — treating as noPerson',
+      // FIX: analyze() ki jagah ab analyzeLiveness() call ho raha hai —
+      // ye 2 frames leta hai gyroscope ke saath, taaki screen/photo/video
+      // ko real person se differentiate kiya ja sake. Isliye timeout bhi
+      // 6s se 8s kar diya (2 frames + gyro overhead thoda zyada time leta hai).
+      scanResult = await DetectionService.analyzeLiveness(_cameraController!)
+          .timeout(
+            const Duration(seconds: 8),
+            onTimeout: () {
+              debugPrint(
+                '⏱️ DetectionService.analyzeLiveness() timed out after 8s — treating as noPerson',
+              );
+              return ScanResult.noPerson;
+            },
           );
-          return ScanResult.noPerson;
-        },
-      );
     } catch (e, stack) {
-      debugPrint('❌ DetectionService.analyze() failed: $e');
+      debugPrint('❌ DetectionService.analyzeLiveness() failed: $e');
       debugPrint('$stack');
       scanResult = ScanResult.noPerson;
     }
 
     if (!mounted) return;
 
-    // ── STEP 2: PERSON NAHI MILA ──
-    // Scanning UI bilkul mat dikhao, seedha "No person detected" flash karo.
     if (scanResult == ScanResult.noPerson) {
       setState(() {
         _isScanning = false;
@@ -195,15 +190,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _noPersonDetected = true;
       });
       HapticFeedback.lightImpact();
-
-      // chaho to auto-hide bhi kar sakte ho 2.5 sec baad
       Future.delayed(const Duration(milliseconds: 2500), () {
         if (mounted) setState(() => _noPersonDetected = false);
       });
       return;
     }
 
-    // ── STEP 3: PERSON MIL GAYA — YAHAN SE NORMAL FLOW (jo already sahi hai) ──
+    // ── NAYA CASE: flat screen/photo/video detect hua ──
+    if (scanResult == ScanResult.screenDetected) {
+      setState(() {
+        _isScanning = false;
+        _statusMessage = '';
+        _screenDetected = true;
+      });
+      HapticFeedback.lightImpact();
+      Future.delayed(const Duration(milliseconds: 2500), () {
+        if (mounted) setState(() => _screenDetected = false);
+      });
+      return;
+    }
+
     setState(() {
       _isScanning = true;
       _noPersonDetected = false;
@@ -225,9 +231,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     setState(() => _statusMessage = 'Scanning Environment...');
     _statusFadeController.forward(from: 0);
 
-    // Note: scanResult already mil chuka hai step 1 mein (person present),
-    // isliye DetectionService.analyze() ko dobara call nahi karna —
-    // bas thodi si polish delay taaki "Scanning Environment..." dikh sake.
     await Future.delayed(const Duration(milliseconds: 500));
 
     if (!mounted) return;
@@ -681,7 +684,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
 
               // NO PERSON DETECTED
-              if (_noPersonDetected && !_isScanning)
+              // SCREEN / PHOTO / VIDEO DETECTED (fake person)
+              if (_screenDetected && !_isScanning)
                 Positioned(
                   top: topPad + 70,
                   left: 0,
@@ -704,13 +708,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            Icons.warning_amber_rounded,
+                            Icons.smartphone_rounded,
                             color: Color(0xFFE24B4A),
                             size: 15,
                           ),
                           SizedBox(width: 6),
                           Text(
-                            'No person detected. Rescan.',
+                            'Screen/photo detected. Scan a real person.',
                             style: TextStyle(
                               color: Color(0xFFF09595),
                               fontSize: 12,
