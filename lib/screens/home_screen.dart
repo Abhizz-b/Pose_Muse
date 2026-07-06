@@ -674,7 +674,8 @@ class _HomeScreenState extends State<HomeScreen>
                         return ScaleTransition(
                           scale: Tween<double>(
                             begin: 0.5,
-                            end: 1.0,
+                            end:
+                                1.0, // thoda chota target — overshoot ke baad bhi 'too big' nahi lagega
                           ).animate(animation),
                           child: FadeTransition(
                             opacity: animation,
@@ -697,7 +698,7 @@ class _HomeScreenState extends State<HomeScreen>
                               child: Center(
                                 child: AnimatedScale(
                                   duration: const Duration(milliseconds: 250),
-                                  scale: _isGhostPreview ? 1.18 : 1.0,
+                                  scale: _isGhostPreview ? 0.885 : 0.75,
                                   curve: Curves.easeOutCubic,
                                   child: AnimatedOpacity(
                                     duration: const Duration(milliseconds: 250),
