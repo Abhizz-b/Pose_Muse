@@ -1,119 +1,182 @@
 [
   {
     "id": 1,
-    "image": "assets/poses/1.png",
-    "category": "park",
+    "image": "assets/poses/selfie_1.jpeg",
+    "category": "selfie",
     "tags": [
-      "standing",
-      "full-body",
-      "bag",
-      "dress",
-      "casual",
-      "outdoor"
+      "selfie"
     ],
     "difficulty": "easy",
-    "name": "Casual Stand"
+    "name": "Selfie Pose 1"
   },
   {
     "id": 2,
-    "image": "assets/poses/2.png",
-    "category": "mall",
+    "image": "assets/poses/selfie_2.jpeg",
+    "category": "selfie",
     "tags": [
-      "half-body",
-      "arms-crossed",
-      "confident",
-      "indoor",
-      "stylish"
+      "selfie"
     ],
     "difficulty": "easy",
-    "name": "Confident Cross"
+    "name": "Selfie Pose 2"
   },
   {
     "id": 3,
-    "image": "assets/poses/3.png",
-    "category": "park",
+    "image": "assets/poses/selfie_3.jpeg",
+    "category": "selfie",
     "tags": [
-      "peace-sign",
-      "fun",
-      "outdoor",
-      "sitting",
-      "expressive"
+      "selfie"
     ],
     "difficulty": "easy",
-    "name": "Peace & Smile"
+    "name": "Selfie Pose 3"
   },
   {
     "id": 4,
-    "image": "assets/poses/4.png",
-    "category": "mall",
+    "image": "assets/poses/selfie_4.jpeg",
+    "category": "selfie",
     "tags": [
-      "leaning",
-      "casual",
-      "jeans",
-      "bag",
-      "full-body",
-      "indoor"
+      "selfie"
     ],
-    "difficulty": "medium",
-    "name": "Street Lean"
+    "difficulty": "easy",
+    "name": "Selfie Pose 4"
   },
   {
     "id": 5,
-    "image": "assets/poses/5.png",
-    "category": "park",
+    "image": "assets/poses/selfie_5.jpeg",
+    "category": "selfie",
     "tags": [
-      "pointing-up",
-      "dynamic",
-      "full-body",
-      "jacket",
-      "energetic"
+      "selfie"
     ],
-    "difficulty": "hard",
-    "name": "Sky Point"
+    "difficulty": "easy",
+    "name": "Selfie Pose 5"
   },
   {
     "id": 6,
-    "image": "assets/poses/6.png",
-    "category": "library",
+    "image": "assets/poses/selfie_6.jpeg",
+    "category": "selfie",
     "tags": [
-      "sitting",
-      "chin-rest",
-      "relaxed",
-      "indoor",
-      "half-body",
-      "dreamy"
+      "selfie"
     ],
-    "difficulty": "easy",
-    "name": "Dreamy Rest"
+    "difficulty": "medium",
+    "name": "Selfie Pose 6"
   },
   {
     "id": 7,
-    "image": "assets/poses/7.png",
-    "category": "library",
+    "image": "assets/poses/selfie_7.jpeg",
+    "category": "selfie",
     "tags": [
-      "sitting",
-      "reading",
-      "book",
-      "indoor",
-      "casual",
-      "half-body"
+      "selfie"
     ],
-    "difficulty": "easy",
-    "name": "Reading Pose"
+    "difficulty": "medium",
+    "name": "Selfie Pose 7"
   },
   {
     "id": 8,
-    "image": "assets/poses/8.png",
-    "category": "park",
+    "image": "assets/poses/selfie_8.jpeg",
+    "category": "selfie",
     "tags": [
-      "standing",
-      "casual",
-      "t-shirt",
-      "relaxed",
-      "smiling",
-      "outdoor"
+      "selfie"
+    ],
+    "difficulty": "medium",
+    "name": "Selfie Pose 8"
+  },
+  {
+    "id": 9,
+    "image": "assets/poses/selfie_9.jpeg",
+    "category": "selfie",
+    "tags": [
+      "selfie"
+    ],
+    "difficulty": "medium",
+    "name": "Selfie Pose 9"
+  },
+  {
+    "id": 10,
+    "image": "assets/poses/selfie_10.jpeg",
+    "category": "selfie",
+    "tags": [
+      "selfie"
+    ],
+    "difficulty": "hard",
+    "name": "Selfie Pose 10"
+  },
+  {
+    "id": 11,
+    "image": "assets/poses/selfie_11.jpeg",
+    "category": "selfie",
+    "tags": [
+      "selfie"
+    ],
+    "difficulty": "hard",
+    "name": "Selfie Pose 11"
+  },
+  {
+    "id": 12,
+    "image": "assets/poses/selfie_12.jpeg",
+    "category": "selfie",
+    "tags": [
+      "selfie"
+    ],
+    "difficulty": "hard",
+    "name": "Selfie Pose 12"
+  },
+  {
+    "id": 13,
+    "image": "assets/poses/mirror_1.jpeg",
+    "category": "mirror",
+    "tags": [
+      "mirror"
     ],
     "difficulty": "easy",
-    "name": "Relaxed Smile"
+    "name": "Mirror Pose 1"
+  },
+  {
+    "id": 14,
+    "image": "assets/poses/mirror_2.jpeg",
+    "category": "mirror",
+    "tags": [
+      "mirror"
+    ],
+    "difficulty": "easy",
+    "name": "Mirror Pose 2"
+  },
+  {
+    "id": 15,
+    "image": "assets/poses/mirror_3.jpeg",
+    "category": "mirror",
+    "tags": [
+      "mirror"
+    ],
+    "difficulty": "medium",
+    "name": "Mirror Pose 3"
+  },
+  {
+    "id": 16,
+    "image": "assets/poses/mirror_4.jpeg",
+    "category": "mirror",
+    "tags": [
+      "mirror"
+    ],
+    "difficulty": "medium",
+    "name": "Mirror Pose 4"
+  },
+  {
+    "id": 17,
+    "image": "assets/poses/mirror_5.jpeg",
+    "category": "mirror",
+    "tags": [
+      "mirror"
+    ],
+    "difficulty": "hard",
+    "name": "Mirror Pose 5"
+  },
+  {
+    "id": 18,
+    "image": "assets/poses/mirror_6.jpeg",
+    "category": "mirror",
+    "tags": [
+      "mirror"
+    ],
+    "difficulty": "hard",
+    "name": "Mirror Pose 6"
   }
 ]

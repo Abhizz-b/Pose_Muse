@@ -516,9 +516,13 @@ class _AiPicksTab extends StatelessWidget {
 
   List<LocalPose> get _recommended {
     if (scanResult == ScanResult.fullBody) {
-      return allPoses.where((p) => p.tags.contains('full-body')).toList();
+      return allPoses
+          .where(
+            (p) => p.tags.contains('mirror') || p.tags.contains('full-body'),
+          )
+          .toList();
     }
-    return allPoses.where((p) => p.tags.contains('half-body')).toList();
+    return allPoses.where((p) => p.tags.contains('selfie')).toList();
   }
 
   @override
