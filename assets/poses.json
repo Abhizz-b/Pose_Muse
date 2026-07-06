@@ -1,7 +1,7 @@
 [
   {
     "id": 1,
-    "image": "assets/poses/selfie_1.jpeg",
+    "image": "assets/poses/selfie_1.png",
     "category": "selfie",
     "tags": [
       "selfie"
@@ -11,7 +11,7 @@
   },
   {
     "id": 2,
-    "image": "assets/poses/selfie_2.jpeg",
+    "image": "assets/poses/selfie_2.png",
     "category": "selfie",
     "tags": [
       "selfie"
@@ -21,7 +21,7 @@
   },
   {
     "id": 3,
-    "image": "assets/poses/selfie_3.jpeg",
+    "image": "assets/poses/selfie_3.png",
     "category": "selfie",
     "tags": [
       "selfie"
@@ -31,7 +31,7 @@
   },
   {
     "id": 4,
-    "image": "assets/poses/selfie_4.jpeg",
+    "image": "assets/poses/selfie_4.png",
     "category": "selfie",
     "tags": [
       "selfie"
@@ -41,7 +41,7 @@
   },
   {
     "id": 5,
-    "image": "assets/poses/selfie_5.jpeg",
+    "image": "assets/poses/selfie_5.png",
     "category": "selfie",
     "tags": [
       "selfie"
@@ -51,7 +51,7 @@
   },
   {
     "id": 6,
-    "image": "assets/poses/selfie_6.jpeg",
+    "image": "assets/poses/selfie_6.png",
     "category": "selfie",
     "tags": [
       "selfie"
@@ -61,7 +61,7 @@
   },
   {
     "id": 7,
-    "image": "assets/poses/selfie_7.jpeg",
+    "image": "assets/poses/selfie_7.png",
     "category": "selfie",
     "tags": [
       "selfie"
@@ -71,7 +71,7 @@
   },
   {
     "id": 8,
-    "image": "assets/poses/selfie_8.jpeg",
+    "image": "assets/poses/selfie_8.png",
     "category": "selfie",
     "tags": [
       "selfie"
@@ -81,7 +81,7 @@
   },
   {
     "id": 9,
-    "image": "assets/poses/selfie_9.jpeg",
+    "image": "assets/poses/selfie_9.png",
     "category": "selfie",
     "tags": [
       "selfie"
@@ -91,7 +91,7 @@
   },
   {
     "id": 10,
-    "image": "assets/poses/selfie_10.jpeg",
+    "image": "assets/poses/selfie_10.png",
     "category": "selfie",
     "tags": [
       "selfie"
@@ -101,7 +101,7 @@
   },
   {
     "id": 11,
-    "image": "assets/poses/selfie_11.jpeg",
+    "image": "assets/poses/selfie_11.png",
     "category": "selfie",
     "tags": [
       "selfie"
@@ -111,7 +111,7 @@
   },
   {
     "id": 12,
-    "image": "assets/poses/selfie_12.jpeg",
+    "image": "assets/poses/selfie_12.png",
     "category": "selfie",
     "tags": [
       "selfie"
@@ -121,7 +121,7 @@
   },
   {
     "id": 13,
-    "image": "assets/poses/mirror_1.jpeg",
+    "image": "assets/poses/mirror_1.png",
     "category": "mirror",
     "tags": [
       "mirror"
@@ -131,7 +131,7 @@
   },
   {
     "id": 14,
-    "image": "assets/poses/mirror_2.jpeg",
+    "image": "assets/poses/mirror_2.png",
     "category": "mirror",
     "tags": [
       "mirror"
@@ -141,7 +141,7 @@
   },
   {
     "id": 15,
-    "image": "assets/poses/mirror_3.jpeg",
+    "image": "assets/poses/mirror_3.png",
     "category": "mirror",
     "tags": [
       "mirror"
@@ -151,7 +151,7 @@
   },
   {
     "id": 16,
-    "image": "assets/poses/mirror_4.jpeg",
+    "image": "assets/poses/mirror_4.png",
     "category": "mirror",
     "tags": [
       "mirror"
@@ -161,7 +161,7 @@
   },
   {
     "id": 17,
-    "image": "assets/poses/mirror_5.jpeg",
+    "image": "assets/poses/mirror_5.png",
     "category": "mirror",
     "tags": [
       "mirror"
@@ -171,7 +171,7 @@
   },
   {
     "id": 18,
-    "image": "assets/poses/mirror_6.jpeg",
+    "image": "assets/poses/mirror_6.png",
     "category": "mirror",
     "tags": [
       "mirror"
