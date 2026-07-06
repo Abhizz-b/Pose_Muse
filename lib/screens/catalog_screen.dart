@@ -737,6 +737,15 @@ class _LocalPoseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // FIX: selfie images are tight close-up crops (little transparent
+    // margin), while mirror images are full-body shots with lots of
+    // empty space top/bottom. With the same BoxFit.contain tile,
+    // selfie poses render visually bigger than mirror poses. Adding
+    // extra padding to selfie images only visually balances the two.
+    final extraPadding = pose.category == 'selfie'
+        ? const EdgeInsets.all(18.0)
+        : EdgeInsets.zero;
+
     return GestureDetector(
       onTap: onToggleSelect,
       onLongPress: onLongPress != null ? () => onLongPress!() : null,
@@ -745,25 +754,31 @@ class _LocalPoseCard extends StatelessWidget {
         children: [
           // Glow that follows the cutout's actual shape (not a box)
           if (isSelected)
-            ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-              child: ColorFiltered(
-                colorFilter: ColorFilter.mode(
-                  orange.withOpacity(0.9),
-                  BlendMode.srcIn,
+            Padding(
+              padding: extraPadding,
+              child: ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                child: ColorFiltered(
+                  colorFilter: ColorFilter.mode(
+                    orange.withOpacity(0.9),
+                    BlendMode.srcIn,
+                  ),
+                  child: Image.asset(pose.image, fit: BoxFit.contain),
                 ),
-                child: Image.asset(pose.image, fit: BoxFit.contain),
               ),
             ),
 
           // Sharp image on top — no box, floats on screen bg
-          Image.asset(
-            pose.image,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Icon(
-              Icons.image_not_supported,
-              color: Colors.white38,
-              size: 32,
+          Padding(
+            padding: extraPadding,
+            child: Image.asset(
+              pose.image,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Icon(
+                Icons.image_not_supported,
+                color: Colors.white38,
+                size: 32,
+              ),
             ),
           ),
         ],
