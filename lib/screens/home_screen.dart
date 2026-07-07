@@ -1100,7 +1100,6 @@ class _HomeScreenState extends State<HomeScreen>
               // sync big preview too
               if (_previewPose != null) {
                 _previewPose = _shootPoses[index];
-                _isGhostPreview = false;
               }
             });
           },
