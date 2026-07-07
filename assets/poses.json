@@ -4,7 +4,8 @@
     "image": "assets/poses/selfie_1.png",
     "category": "selfie",
     "tags": [
-      "selfie"
+      "selfie",
+      "solo"
     ],
     "difficulty": "easy",
     "name": "Selfie Pose 1"
@@ -14,7 +15,8 @@
     "image": "assets/poses/selfie_2.png",
     "category": "selfie",
     "tags": [
-      "selfie"
+      "selfie",
+      "solo"
     ],
     "difficulty": "easy",
     "name": "Selfie Pose 2"
@@ -24,7 +26,8 @@
     "image": "assets/poses/selfie_3.png",
     "category": "selfie",
     "tags": [
-      "selfie"
+      "selfie",
+      "solo"
     ],
     "difficulty": "easy",
     "name": "Selfie Pose 3"
@@ -34,7 +37,8 @@
     "image": "assets/poses/selfie_4.png",
     "category": "selfie",
     "tags": [
-      "selfie"
+      "selfie",
+      "solo"
     ],
     "difficulty": "easy",
     "name": "Selfie Pose 4"
@@ -44,7 +48,8 @@
     "image": "assets/poses/selfie_5.png",
     "category": "selfie",
     "tags": [
-      "selfie"
+      "selfie",
+      "solo"
     ],
     "difficulty": "easy",
     "name": "Selfie Pose 5"
@@ -54,7 +59,8 @@
     "image": "assets/poses/selfie_6.png",
     "category": "selfie",
     "tags": [
-      "selfie"
+      "selfie",
+      "solo"
     ],
     "difficulty": "medium",
     "name": "Selfie Pose 6"
@@ -64,7 +70,8 @@
     "image": "assets/poses/selfie_7.png",
     "category": "selfie",
     "tags": [
-      "selfie"
+      "selfie",
+      "solo"
     ],
     "difficulty": "medium",
     "name": "Selfie Pose 7"
@@ -74,7 +81,8 @@
     "image": "assets/poses/selfie_8.png",
     "category": "selfie",
     "tags": [
-      "selfie"
+      "selfie",
+      "solo"
     ],
     "difficulty": "medium",
     "name": "Selfie Pose 8"
@@ -84,7 +92,8 @@
     "image": "assets/poses/selfie_9.png",
     "category": "selfie",
     "tags": [
-      "selfie"
+      "selfie",
+      "solo"
     ],
     "difficulty": "medium",
     "name": "Selfie Pose 9"
@@ -94,7 +103,8 @@
     "image": "assets/poses/selfie_10.png",
     "category": "selfie",
     "tags": [
-      "selfie"
+      "selfie",
+      "solo"
     ],
     "difficulty": "hard",
     "name": "Selfie Pose 10"
@@ -104,7 +114,8 @@
     "image": "assets/poses/selfie_11.png",
     "category": "selfie",
     "tags": [
-      "selfie"
+      "selfie",
+      "solo"
     ],
     "difficulty": "hard",
     "name": "Selfie Pose 11"
@@ -114,7 +125,8 @@
     "image": "assets/poses/selfie_12.png",
     "category": "selfie",
     "tags": [
-      "selfie"
+      "selfie",
+      "solo"
     ],
     "difficulty": "hard",
     "name": "Selfie Pose 12"
@@ -124,7 +136,8 @@
     "image": "assets/poses/mirror_1.png",
     "category": "mirror",
     "tags": [
-      "mirror"
+      "mirror",
+      "solo"
     ],
     "difficulty": "easy",
     "name": "Mirror Pose 1"
@@ -134,7 +147,8 @@
     "image": "assets/poses/mirror_2.png",
     "category": "mirror",
     "tags": [
-      "mirror"
+      "mirror",
+      "solo"
     ],
     "difficulty": "easy",
     "name": "Mirror Pose 2"
@@ -144,7 +158,8 @@
     "image": "assets/poses/mirror_3.png",
     "category": "mirror",
     "tags": [
-      "mirror"
+      "mirror",
+      "solo"
     ],
     "difficulty": "medium",
     "name": "Mirror Pose 3"
@@ -154,7 +169,8 @@
     "image": "assets/poses/mirror_4.png",
     "category": "mirror",
     "tags": [
-      "mirror"
+      "mirror",
+      "solo"
     ],
     "difficulty": "medium",
     "name": "Mirror Pose 4"
@@ -164,7 +180,8 @@
     "image": "assets/poses/mirror_5.png",
     "category": "mirror",
     "tags": [
-      "mirror"
+      "mirror",
+      "solo"
     ],
     "difficulty": "hard",
     "name": "Mirror Pose 5"
@@ -174,7 +191,8 @@
     "image": "assets/poses/mirror_6.png",
     "category": "mirror",
     "tags": [
-      "mirror"
+      "mirror",
+      "solo"
     ],
     "difficulty": "hard",
     "name": "Mirror Pose 6"

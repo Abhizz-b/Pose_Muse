@@ -643,6 +643,20 @@ class _AiPicksTab extends StatelessWidget {
 }
 
 // ── All Poses Tab ──
+//
+// NEW: floating left/right filter rails.
+//   Left rail  -> framing filter: Selfie / Full-body (mirror included)
+//                 optional — either one active, or none (toggle).
+//   Right rail -> people filter : Solo / Dual (multi-person)
+//                 MANDATORY — behaves like a radio button. One of the
+//                 two is always active (defaults to 'solo' since all
+//                 current poses are solo shots). Tapping the already
+//                 active option does nothing; tapping the other one
+//                 switches the selection. Neither can be deselected.
+//
+// Filters are independent of each other (can combine Selfie + Solo).
+// This tab is the ONLY place these rails appear — AI Picks & My Poses
+// are untouched.
 class _AllPosesTab extends StatefulWidget {
   final List<LocalPose> poses;
   final bool loading;
@@ -669,14 +683,36 @@ class _AllPosesTab extends StatefulWidget {
 }
 
 class _AllPosesTabState extends State<_AllPosesTab> {
-  String _filter = 'All';
-  final List<String> _filters = ['All', 'easy', 'medium', 'hard'];
+  // Left rail — framing filter. Values: null, 'selfie', 'full-body'
+  String? _framingFilter;
+  // Right rail — people-count filter. Values: 'solo', 'dual'.
+  // Mandatory / radio-button style — never null, defaults to 'solo'.
+  String _peopleFilter = 'solo';
 
-  List<LocalPose> get _filtered => _filter == 'All'
-      ? widget.poses
-      : widget.poses
-            .where((p) => p.difficulty.toLowerCase() == _filter)
-            .toList();
+  List<LocalPose> get _filtered {
+    return widget.poses.where((p) {
+      final matchesFraming =
+          _framingFilter == null ||
+          p.tags.contains(_framingFilter) ||
+          (_framingFilter == 'full-body' && p.tags.contains('mirror'));
+      final matchesPeople = p.tags.contains(_peopleFilter);
+      return matchesFraming && matchesPeople;
+    }).toList();
+  }
+
+  void _toggleFraming(String value) {
+    setState(() {
+      _framingFilter = _framingFilter == value ? null : value;
+    });
+  }
+
+  void _togglePeople(String value) {
+    // Radio-button behavior: always ends up with exactly one option
+    // active. Tapping the currently active one is a no-op.
+    setState(() {
+      _peopleFilter = value;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -685,31 +721,211 @@ class _AllPosesTabState extends State<_AllPosesTab> {
         child: CircularProgressIndicator(color: widget.orange, strokeWidth: 2),
       );
     }
-    return Column(
+
+    final filtered = _filtered;
+
+    return Stack(
       children: [
-        Expanded(
-          child: GridView.builder(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-              childAspectRatio: 0.72,
+        Column(
+          children: [
+            Expanded(
+              child: filtered.isEmpty
+                  ? _buildNoMatch()
+                  : GridView.builder(
+                      // extra left/right padding so cards don't sit under the rails
+                      padding: const EdgeInsets.fromLTRB(56, 4, 56, 24),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                            childAspectRatio: 0.72,
+                          ),
+                      itemCount: filtered.length,
+                      itemBuilder: (_, i) {
+                        final pose = filtered[i];
+                        return _LocalPoseCard(
+                          pose: pose,
+                          orange: widget.orange,
+                          onSave: widget.onSave,
+                          isSelected: widget.isPoseSelected(pose),
+                          onToggleSelect: () => widget.onToggleSelect(pose),
+                        );
+                      },
+                    ),
             ),
-            itemCount: _filtered.length,
-            itemBuilder: (_, i) {
-              final pose = _filtered[i];
-              return _LocalPoseCard(
-                pose: pose,
-                orange: widget.orange,
-                onSave: widget.onSave,
-                isSelected: widget.isPoseSelected(pose),
-                onToggleSelect: () => widget.onToggleSelect(pose),
-              );
-            },
+          ],
+        ),
+
+        // ── Left rail: framing filters ──
+        Positioned(
+          left: 6,
+          top: 0,
+          bottom: 0,
+          child: Center(
+            child: _FilterRail(
+              orange: widget.orange,
+              children: [
+                _RailIcon(
+                  icon: Icons.camera_front_rounded,
+                  label: 'Selfie',
+                  active: _framingFilter == 'selfie',
+                  orange: widget.orange,
+                  onTap: () => _toggleFraming('selfie'),
+                ),
+                const SizedBox(height: 14),
+                _RailIcon(
+                  icon: Icons.accessibility_new_rounded,
+                  label: 'Full body',
+                  active: _framingFilter == 'full-body',
+                  orange: widget.orange,
+                  onTap: () => _toggleFraming('full-body'),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // ── Right rail: people-count filters (mandatory, radio-style) ──
+        Positioned(
+          right: 6,
+          top: 0,
+          bottom: 0,
+          child: Center(
+            child: _FilterRail(
+              orange: widget.orange,
+              children: [
+                _RailIcon(
+                  icon: Icons.person_rounded,
+                  label: 'Solo',
+                  active: _peopleFilter == 'solo',
+                  orange: widget.orange,
+                  onTap: () => _togglePeople('solo'),
+                ),
+                const SizedBox(height: 14),
+                _RailIcon(
+                  icon: Icons.people_alt_rounded,
+                  label: 'Dual',
+                  active: _peopleFilter == 'dual',
+                  orange: widget.orange,
+                  onTap: () => _togglePeople('dual'),
+                ),
+              ],
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildNoMatch() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 56),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.search_off_rounded,
+              color: widget.textSecondary,
+              size: 40,
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'No poses match this filter',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Tag your poses with selfie / full-body\nand solo / dual to use this filter',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: widget.textSecondary,
+                fontSize: 12,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Small pill-shaped container that holds the rail icons (matches the
+// floating vertical strip look from the reference screenshot).
+class _FilterRail extends StatelessWidget {
+  final Color orange;
+  final List<Widget> children;
+
+  const _FilterRail({required this.orange, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.35),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: children),
+    );
+  }
+}
+
+// Single circular toggle icon used inside a _FilterRail.
+class _RailIcon extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool active;
+  final Color orange;
+  final VoidCallback onTap;
+
+  const _RailIcon({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.orange,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: active ? orange : Colors.white.withOpacity(0.08),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: active ? orange : Colors.white24,
+                width: 1,
+              ),
+            ),
+            child: Icon(icon, color: Colors.white, size: 18),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: TextStyle(
+              color: active ? orange : Colors.white54,
+              fontSize: 9,
+              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
