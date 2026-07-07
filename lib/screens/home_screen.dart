@@ -698,7 +698,7 @@ class _HomeScreenState extends State<HomeScreen>
                               child: Center(
                                 child: AnimatedScale(
                                   duration: const Duration(milliseconds: 250),
-                                  scale: _isGhostPreview ? 0.885 : 0.75,
+                                  scale: _isGhostPreview ? 0.98 : 0.75,
                                   curve: Curves.easeOutCubic,
                                   child: AnimatedOpacity(
                                     duration: const Duration(milliseconds: 250),
