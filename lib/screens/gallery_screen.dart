@@ -2,10 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:gal/gal.dart';
 import '../models/saved_photo.dart';
 import '../services/photo_storage_service.dart';
 import 'settings_screen.dart';
-import 'package:gal/gal.dart';
 
 class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key});
@@ -221,6 +221,74 @@ class _GalleryScreenState extends State<GalleryScreen> {
       }
       _exitSelectMode();
       _loadPhotos();
+    }
+  }
+
+  // saves all currently selected photos to the phone's real gallery
+  Future<void> _saveSelectedToGallery() async {
+    if (_selectedIds.isEmpty) return;
+    HapticFeedback.lightImpact();
+
+    try {
+      final hasAccess = await Gal.hasAccess();
+      if (!hasAccess) {
+        final granted = await Gal.requestAccess();
+        if (!granted) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Gallery permission denied. Enable it in phone settings.',
+              ),
+              backgroundColor: Color(0xFFE24B4A),
+            ),
+          );
+          return;
+        }
+      }
+
+      final selectedPhotos = _photos
+          .where((p) => _selectedIds.contains(p.id))
+          .toList();
+      int successCount = 0;
+      for (final photo in selectedPhotos) {
+        try {
+          await Gal.putImage(photo.path, album: 'Pose Muse');
+          successCount++;
+        } catch (_) {
+          // ek fail ho toh baaki try karte raho
+        }
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.check_circle_rounded,
+                color: Colors.white,
+                size: 16,
+              ),
+              const SizedBox(width: 8),
+              Text('$successCount photo${successCount == 1 ? '' : 's'} saved!'),
+            ],
+          ),
+          backgroundColor: const Color(0xFF6B3FD4),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save: $e')));
     }
   }
 
@@ -515,11 +583,23 @@ class _GalleryScreenState extends State<GalleryScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _footerIcon(
-            icon: Icons.share_rounded,
-            enabled: hasSelection,
-            color: _textPrimary,
-            onTap: hasSelection ? _shareSelected : null,
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _footerIcon(
+                icon: Icons.share_rounded,
+                enabled: hasSelection,
+                color: _textPrimary,
+                onTap: hasSelection ? _shareSelected : null,
+              ),
+              const SizedBox(width: 18),
+              _footerIcon(
+                icon: Icons.download_rounded,
+                enabled: hasSelection,
+                color: _textPrimary,
+                onTap: hasSelection ? _saveSelectedToGallery : null,
+              ),
+            ],
           ),
           Text(
             hasSelection
@@ -691,6 +771,7 @@ class _PhotoViewerScreenState extends State<_PhotoViewerScreen>
     }
   }
 
+  // saves the currently open photo to the phone's real gallery
   Future<void> _saveToPhoneGallery() async {
     HapticFeedback.lightImpact();
     final photo = _photos[_currentIndex];
