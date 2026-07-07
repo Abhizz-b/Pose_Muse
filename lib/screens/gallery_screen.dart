@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import '../models/saved_photo.dart';
 import '../services/photo_storage_service.dart';
 import 'settings_screen.dart';
+import 'package:gal/gal.dart';
 
 class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key});
@@ -690,6 +691,58 @@ class _PhotoViewerScreenState extends State<_PhotoViewerScreen>
     }
   }
 
+  Future<void> _saveToPhoneGallery() async {
+    HapticFeedback.lightImpact();
+    final photo = _photos[_currentIndex];
+
+    try {
+      final hasAccess = await Gal.hasAccess();
+      if (!hasAccess) {
+        final granted = await Gal.requestAccess();
+        if (!granted) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Gallery permission denied. Enable it in phone settings.',
+              ),
+              backgroundColor: Color(0xFFE24B4A),
+            ),
+          );
+          return;
+        }
+      }
+
+      await Gal.putImage(photo.path, album: 'Pose Muse');
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.check_circle_rounded, color: Colors.white, size: 16),
+              SizedBox(width: 8),
+              Text('Saved to phone gallery!'),
+            ],
+          ),
+          backgroundColor: const Color(0xFF6B3FD4),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_photos.isEmpty) {
@@ -748,7 +801,7 @@ class _PhotoViewerScreenState extends State<_PhotoViewerScreen>
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 40),
+              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -759,6 +812,11 @@ class _PhotoViewerScreenState extends State<_PhotoViewerScreen>
                     color: currentPhoto.isFavourite ? _purple : _iconColor,
                     onTap: _toggleFavourite,
                     scale: _heartScale,
+                  ),
+                  _actionButton(
+                    icon: Icons.download_rounded,
+                    color: _iconColor,
+                    onTap: _saveToPhoneGallery,
                   ),
                   _actionButton(
                     icon: Icons.share_rounded,
