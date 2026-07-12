@@ -11,7 +11,7 @@
 ![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)
 ![ML Kit](https://img.shields.io/badge/ML_Kit-4285F4?style=for-the-badge&logo=google&logoColor=white)
 
-*from a library selfie struggle to a full AI app — built solo, from idea to deployment.*
+*from a library selfie struggle to a full AI app built solo, from idea to deployment.*
 
 </div>
 
