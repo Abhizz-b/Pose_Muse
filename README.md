@@ -132,7 +132,7 @@ lib/
 
 I'm Abhipsa a final year B.Tech student. I was sitting in my college library trying to click selfies and completely ran out of poses. That tiny frustration became this app.
 
-Everything you see here — idea, design, code, deployment built alone. This is my first app. The poses in the catalog? That's me. Had to avoid copyright somehow.
+Everything you see here idea, design, code, deployment built alone. This is my first app. The poses in the catalog? That's me. Had to avoid copyright somehow.
 
 ---
 
